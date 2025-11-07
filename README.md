@@ -1,4 +1,4 @@
-# Data-Science-in-Football-Comparing-Model-Predictions-with-Betting-Market-Odds
+# Data Science in Football : Comparing Model Predictions with Betting Market Odds.
 
 **Category** : Data Analysis & Visualization
 **Name** : Descamps Mattis
