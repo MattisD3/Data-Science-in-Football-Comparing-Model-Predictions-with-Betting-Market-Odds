@@ -1,0 +1,15 @@
+# Environnement virtuel
+venv/
+
+# Fichiers temporaires Python
+__pycache__/
+*.pyc
+
+# Fichiers système
+.DS_Store
+
+# Checkpoints Jupyter (si tu fais des notebooks)
+.ipynb_checkpoints/
+
+# Variables d'environnement
+.env
