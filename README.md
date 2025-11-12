@@ -45,7 +45,3 @@ My research question is :
 ## Stretch goals (if time permits)
 - Extend anaylsis accross multiple leagues.
 - Backtesting : simulate a small theoretical betting strategy using model and bookmaker probabilities to test for potential value bets and analyze market mispricing.
-
-# test update from VS Code3i
-# double test
-## test du Push
