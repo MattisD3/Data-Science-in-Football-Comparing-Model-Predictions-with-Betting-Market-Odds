@@ -1,4 +1,4 @@
-match_id,season,date,team,opponent,is_home,goals_for,goals_against,xg_for,xg_against,shots_for,shots_against,poss,prob_book_home,prob_book_draw,prob_book_away,result
+match_id,season,date,team,opponent,is_home,goals_for,goals_against,xg_for,xg_against,shots_on_target_for,shots_on_target_against,poss,prob_book_home,prob_book_draw,prob_book_away,result
 1,2022-2023,2022-08-05,Arsenal,Crystal Palace,0,2,0,1.0,1.2,2,2,44,0.2187949333045882,0.2666245233758237,0.514580543319588,A
 1,2022-2023,2022-08-05,Crystal Palace,Arsenal,1,0,2,1.2,1.0,2,2,56,0.2187949333045882,0.2666245233758237,0.514580543319588,A
 2,2022-2023,2022-08-06,Southampton,Tottenham Hotspur,0,1,4,0.5,1.5,2,8,42,0.7092247549051869,0.1807652773672755,0.1100099677275376,H
