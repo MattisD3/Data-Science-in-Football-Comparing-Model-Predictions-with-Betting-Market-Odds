@@ -1,42 +1,6 @@
 import pandas as pd
 
-TEAM_MAPPING = {
-    "Brighton": "Brighton & Hove Albion",
-    "Brighton and Hove Albion": "Brighton & Hove Albion",
-
-    "Manchester Utd": "Manchester United",
-    "Manchester United": "Manchester United",
-
-    "Newcastle Utd": "Newcastle United",
-    "Newcastle United": "Newcastle United",
-
-    "Nott'ham Forest": "Nottingham Forest",
-    "Nottingham Forest": "Nottingham Forest",
-
-    "Sheffield Utd": "Sheffield United",
-    "Sheffield United": "Sheffield United",
-
-    "Tottenham": "Tottenham Hotspur",
-    "Tottenham Hotspur": "Tottenham Hotspur",
-
-    "West Brom": "West Bromwich Albion",
-    "West Bromwich Albion": "West Bromwich Albion",
-
-    "Wolves": "Wolverhampton Wanderers",
-    "Wolverhampton Wanderers": "Wolverhampton Wanderers",
-
-    "West Ham": "West Ham United",
-    "West Ham United": "West Ham United"
-}
-
-# Normalize team name variations for correct Home/Away merging
-def normalize_team_names(df):
-    df["team"] = df["team"].replace(TEAM_MAPPING)
-    df["opponent"] = df["opponent"].replace(TEAM_MAPPING)
-    return df
-
-
-def load_and_clean_matches(path="data/matches.csv"):
+def load_and_clean_matches(path="data/raw/matches.csv"):
     df = pd.read_csv(path)
 
     # Premier League only
@@ -87,7 +51,7 @@ def load_and_clean_matches(path="data/matches.csv"):
         left_on=["date", "home_team", "away_team"],
         right_on=["date", "home_team_check", "away_team_check"],
         how="inner"
-    )
+        )
 
     # Build final dataframe
     final = merged[[
@@ -98,13 +62,13 @@ def load_and_clean_matches(path="data/matches.csv"):
         "home_shots", "away_shots_check",
         "home_sot", "away_sot_check",
         "home_poss", "away_poss_check"
-    ]].copy()
+        ]].copy()
 
     final = final.rename(columns={
         "away_shots_check": "away_shots",
         "away_sot_check": "away_sot",
         "away_poss_check": "away_poss"
-    })
+        })
 
     # Remove duplicates
     final = final.drop_duplicates(subset=["date", "home_team", "away_team"])
@@ -114,8 +78,55 @@ def load_and_clean_matches(path="data/matches.csv"):
 
     return final
 
+TEAM_MAPPING = {
+    "Brighton": "Brighton & Hove Albion",
+    "Brighton and Hove Albion": "Brighton & Hove Albion",
+
+    "Leeds" : "Leeds United",
+    "Leeds United" : "Leeds United",
+
+    "Leicester" : "Leicester City",
+    "Leicester City": "Leicester City",
+
+    "Man City": "Manchester City",
+    "Manchester City": "Manchester City",
+
+    "Man United": "Manchester United",
+    "Manchester Utd": "Manchester United",
+    "Manchester United": "Manchester United",
+
+    "Newcastle": "Newcastle United",
+    "Newcastle Utd": "Newcastle United",
+    "Newcastle United": "Newcastle United",
+
+    "Nott'ham Forest": "Nottingham Forest",
+    "Nott'm Forest": "Nottingham Forest",
+    "Nottingham Forest": "Nottingham Forest",
+
+    "Sheffield Utd": "Sheffield United",
+    "Sheffield United": "Sheffield United",
+
+    "Tottenham": "Tottenham Hotspur",
+    "Tottenham Hotspur": "Tottenham Hotspur",
+
+    "West Brom": "West Bromwich Albion",
+    "West Bromwich Albion": "West Bromwich Albion",
+
+    "Wolves": "Wolverhampton Wanderers",
+    "Wolverhampton Wanderers": "Wolverhampton Wanderers",
+
+    "West Ham": "West Ham United",
+    "West Ham United": "West Ham United"
+}
+
+# Normalize team name variations for correct Home/Away merging
+def normalize_team_names(df):
+    df["team"] = df["team"].replace(TEAM_MAPPING)
+    df["opponent"] = df["opponent"].replace(TEAM_MAPPING)
+    return df
+
 
 if __name__ == "__main__":
     df = load_and_clean_matches()
-    df.to_csv("data/clean_matches_22_23.csv", index=False)
+    df.to_csv("data/processed/clean_matches_22_23.csv", index=False)
     print("clean_matches_22_23.csv created.")
