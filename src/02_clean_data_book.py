@@ -1,5 +1,6 @@
 import pandas as pd
 
+# Path
 CSV_PATH = "data/raw/data_bookmakers 22-23.csv"
 OUTPUT_PATH = "data/processed/clean_bookmakers_22_23.csv"
 

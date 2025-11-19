@@ -1,5 +1,6 @@
 import pandas as pd
 
+# Path
 MATCHES_PATH = "data/processed/clean_matches_22_23.csv"
 BOOKMAKERS_PATH = "data/processed/clean_bookmakers_22_23.csv" 
 
