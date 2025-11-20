@@ -95,4 +95,4 @@ def compute_and_save_elo(input_path, output_path):
 
 
 if __name__ == "__main__":
-    compute_and_save_elo("data/processed/matches_wide_22_23.csv", "data/processed/elo_rating.csv")
+    compute_and_save_elo("data/processed/matches_wide_22_23.csv", "data/processed/elo_rating_22_23.csv")
