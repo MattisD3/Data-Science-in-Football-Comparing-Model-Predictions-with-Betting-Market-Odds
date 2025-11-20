@@ -64,7 +64,7 @@ def add_rolling_xg_features(df: pd.DataFrame, window: int = 5) -> pd.DataFrame:
 
     return df
 
-# Add rolling points (total, home, away) over last N games per team.
+# Add rolling points (total, home, away, strength) over last N games per team.
 def add_rolling_points_features(df: pd.DataFrame, window: int = 5) -> pd.DataFrame:
     df = df.copy()
 
@@ -91,6 +91,13 @@ def add_rolling_points_features(df: pd.DataFrame, window: int = 5) -> pd.DataFra
         team_away_points = df.loc[team_away_mask, "points"]
 
         df.loc[team_away_mask, "rolling_away_points_5"] = ( team_away_points.shift(1).rolling(window).sum())
+    
+    # Compute contextual strength: home strength if team plays at home, away strength otherwise
+    df["strength_points_5"] = np.where(
+        df["is_home"] == 1,
+        df["rolling_home_points_5"],
+        df["rolling_away_points_5"]
+    )
 
     return df
 
@@ -141,18 +148,20 @@ def build_model_dataset(df: pd.DataFrame) -> pd.DataFrame:
         "prob_book_draw",
         "prob_book_away",
         "goal_diff",
+        "xg_diff",
         "xg_for",
         "xg_against",
-        "xg_diff",
         "rolling_xg_for_5",
         "rolling_xg_against_5",
         "rolling_xg_diff_5",
         "rolling_points_5",
-        "rolling_goal_diff_5",
         "rolling_home_points_5",
         "rolling_away_points_5",
+        "strength_points_5",
+        "rolling_goal_diff_5",
         "rolling_home_goal_diff_5",
         "rolling_away_goal_diff_5",
+
     ]
 
     existing_cols = [c for c in cols if c in df.columns]
