@@ -7,66 +7,13 @@ from sklearn.calibration import calibration_curve
 import matplotlib.pyplot as plt
 
 # Path
-FEATURES_PATH = "data/processed/features_matches_long_22_23.csv"
-ELO_PATH = "data/processed/elo_rating_22_23.csv"
+FEATURES_ELO_PATH = "data/processed/features_matches_long_elo_22_23.csv"
 
 # Load engineered long-format match features.
-def load_features(path: str = FEATURES_PATH) -> pd.DataFrame:
+def load_long_features_with_elo(path: str = FEATURES_ELO_PATH) -> pd.DataFrame:
     df = pd.read_csv(path)
     print(f"Initial shape (long features): {df.shape}")
     return df
-
-# Load match-level Elo ratings (one row per match).
-def load_elo(path: str = ELO_PATH) -> pd.DataFrame:
-    df_elo = pd.read_csv(path, parse_dates=["date"])
-    print(f"Elo file shape: {df_elo.shape}")
-    return df_elo
-
-# Merge match-level Elo into team-level long-format dataset.
-def add_elo_features_to_long(df_long: pd.DataFrame, df_elo: pd.DataFrame) -> pd.DataFrame:
-    """
-    For each row (team perspective) we create:
-    - elo_team_before: Elo of this team before the match
-    - elo_opponent_before: Elo of the opponent before the match
-    - elo_diff_before: team Elo - opponent Elo
-    """
-    # Merge on match_id to bring home/away Elo
-    df_merged = df_long.merge(
-        df_elo[[
-            "match_id",
-            "home_team",
-            "away_team",
-            "elo_home_before",
-            "elo_away_before",
-            "elo_diff_home",
-        ]],
-        on="match_id",
-        how="left",
-    )
-
-    # Sanity check
-    if df_merged["elo_home_before"].isna().any():
-        print("Warning: some rows have missing Elo after merge.")
-
-    # Team Elo before the match (depends on is_home)
-    df_merged["elo_team_before"] = np.where(
-        df_merged["is_home"] == 1,
-        df_merged["elo_home_before"],
-        df_merged["elo_away_before"],
-    )
-
-    # Opponent Elo before the match
-    df_merged["elo_opponent_before"] = np.where(
-        df_merged["is_home"] == 1,
-        df_merged["elo_away_before"],
-        df_merged["elo_home_before"],
-    )
-
-    # Elo difference from the team's point of view
-    df_merged["elo_diff_before"] = df_merged["elo_team_before"] - df_merged["elo_opponent_before"]
-
-    print("Shape after adding Elo to long:", df_merged.shape)
-    return df_merged
 
 # Select features/target, handle NaNs, sort by date.
 def prepare_dataset(df: pd.DataFrame, feature_cols: list[str], target_col: str = "result") -> tuple[pd.DataFrame, pd.Series]:
@@ -228,33 +175,22 @@ def plot_calibration_curves(y_test_enc: np.ndarray, y_proba: np.ndarray, le: Lab
 # Run the full baseline pipeline with Elo: load, train, evaluate, plot.
 def run_baseline_with_elo():
     # Load data
-    df_long = load_features(FEATURES_PATH)
-    df_elo = load_elo(ELO_PATH)
-
-    # Add Elo features to the long-format dataset
-    df_with_elo = add_elo_features_to_long(df_long, df_elo)
+    df = load_long_features_with_elo(FEATURES_ELO_PATH)
 
     # Base features (same as previous baseline)
-    base_feature_cols = [
+    feature_cols = [
         "is_home",
         "rolling_xg_for_5",
         "rolling_xg_against_5",
         "rolling_xg_diff_5",
         "rolling_points_5",
         "strength_points_5",
-    ]
-
-    # New Elo features
-    elo_feature_cols = [
         "elo_team_before",
-        "elo_opponent_before",
-        "elo_diff_before",
+        "elo_diff_for_team",
     ]
-
-    feature_cols = base_feature_cols + elo_feature_cols
 
     # Prepare dataset
-    X, y = prepare_dataset(df_with_elo, feature_cols, target_col="result")
+    X, y = prepare_dataset(df, feature_cols, target_col="result")
 
     # Time-based split
     X_train, X_test, y_train, y_test = time_based_split(X, y, train_ratio=0.8)
