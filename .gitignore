@@ -13,3 +13,4 @@ __pycache__/
 
 # Variables d'environnement
 .env
+results/calibration_summary_22_23.csv

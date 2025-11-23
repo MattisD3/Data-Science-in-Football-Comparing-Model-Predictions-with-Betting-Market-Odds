@@ -176,8 +176,9 @@ def run_xgboost_pipeline():
         "rolling_xg_diff_5",
         "rolling_points_5",
         "strength_points_5",
-        "elo_team_before",
-        "elo_diff_for_team",
+        "elo_home_before",
+        "elo_away_before",
+        "elo_diff_home"
     ]
 
     # Prepare dataset

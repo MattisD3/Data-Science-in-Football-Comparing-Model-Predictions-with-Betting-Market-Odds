@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
 
-from pathlib import Path
-
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
@@ -32,11 +30,11 @@ def prepare_dataset(df: pd.DataFrame, feature_cols: list[str], target_col: str =
 
     df_clean = df.dropna(subset=feature_cols + [target_col]).reset_index(drop=True)
 
-    print("\nShape AFTER dropna:", df.shape)
+    print("\nShape AFTER dropna:", df_clean.shape)
     print("NaN per selected column AFTER drop:")
     print(df_clean[feature_cols + [target_col]].isna().sum())
 
-    df_clean["date"] = pd.to_datetime(df["date"])
+    df_clean["date"] = pd.to_datetime(df_clean["date"])
     df_clean = df_clean.sort_values("date").reset_index(drop=True)
 
     X = df_clean[feature_cols].copy()
