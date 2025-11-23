@@ -104,25 +104,27 @@ def build_base_models(random_state: int = 42) -> dict[str, object]:
 
     # Random Forest
     models["RandomForest"] = RandomForestClassifier(
-        n_estimators=300,
+        n_estimators=500,
         max_depth=None,
-        min_samples_leaf=2,
-        n_jobs=-1,
+        min_samples_split=2,
+        min_samples_leaf=1,
         random_state=random_state,
+        n_jobs=1,
     )
 
     # XGBoost
     models["XGBoost"] = XGBClassifier(
+        objective="multi:softprob",
+        num_class=3,
         n_estimators=400,
         learning_rate=0.05,
         max_depth=4,
         subsample=0.9,
         colsample_bytree=0.9,
-        objective="multi:softprob",
-        num_class=3,
-        eval_metric="mlogloss",
+        reg_lambda=1.0,
         random_state=random_state,
         n_jobs=-1,
+        eval_metric="mlogloss",
     )
 
     return models
