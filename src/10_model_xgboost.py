@@ -5,17 +5,16 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, log_loss, brier_score_loss
 from sklearn.calibration import calibration_curve
 import matplotlib.pyplot as plt
-
 import xgboost as xgb
-
 
 # Path 
 FEATURES_ELO_PATH = "data/processed/features_matches_long_elo_22_23.csv"
 
+
 # Load long-format match features already enriched with Elo (two rows per match, one per team).
 def load_long_features_with_elo(path: str = FEATURES_ELO_PATH) -> pd.DataFrame:
     df = pd.read_csv(path)
-    print(f"Loaded long + Elo features: {df.shape}")
+    print(f"Loaded long features: {df.shape}")
     return df
 
 # Drop rows with NaNs in selected features or target, sort by date and return feature matrix X and target vector y.
@@ -44,8 +43,7 @@ def prepare_dataset(df: pd.DataFrame, feature_cols: list[str], target_col: str =
 
 # Chronological train/test split (no shuffling) to avoid leakage. The first `train_ratio` fraction of observations are used for training, the remaining ones for testing.
 def time_based_split(X: pd.DataFrame, y: pd.Series, train_ratio: float = 0.8) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
-    n = len(X)
-    train_size = int(train_ratio * n)
+    train_size = int(train_ratio * len(X))
 
     X_train = X.iloc[:train_size]
     X_test = X.iloc[train_size:]

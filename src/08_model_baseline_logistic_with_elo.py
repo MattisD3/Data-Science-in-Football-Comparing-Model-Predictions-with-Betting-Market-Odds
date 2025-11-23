@@ -9,38 +9,40 @@ import matplotlib.pyplot as plt
 # Path
 FEATURES_ELO_PATH = "data/processed/features_matches_long_elo_22_23.csv"
 
-# Load engineered long-format match features.
+
+# Load long-format match features already enriched with Elo (two rows per match, one per team).
 def load_long_features_with_elo(path: str = FEATURES_ELO_PATH) -> pd.DataFrame:
     df = pd.read_csv(path)
-    print(f"Initial shape (long features): {df.shape}")
+    print(f"Loaded long features:: {df.shape}")
     return df
 
-# Select features/target, handle NaNs, sort by date.
+# Drop rows with NaNs in selected features or target, sort by date and return feature matrix X and target vector y.
 def prepare_dataset(df: pd.DataFrame, feature_cols: list[str], target_col: str = "result") -> tuple[pd.DataFrame, pd.Series]:
     # Drop rows with NaNs in features or target
     print("\nShape BEFORE dropna:", df.shape)
     print("NaN per column BEFORE drop:")
     print(df[feature_cols + [target_col]].isna().sum())
 
-    df = df.dropna(subset=feature_cols + [target_col]).reset_index(drop=True)
+    # Drop rows with missing values in features or target
+    df_clean = df.dropna(subset=feature_cols + [target_col]).reset_index(drop=True)
 
-    print("\nShape AFTER dropna:", df.shape)
+    print("\nShape AFTER dropna:", df_clean.shape)
     print("NaN per column AFTER drop:")
-    print(df[feature_cols + [target_col]].isna().sum())
+    print(df_clean[feature_cols + [target_col]].isna().sum())
 
     # Ensure date is datetime and sort chronologically
-    df["date"] = pd.to_datetime(df["date"])
-    df = df.sort_values("date").reset_index(drop=True)
+    df_clean["date"] = pd.to_datetime(df_clean["date"])
+    df_clean = df_clean.sort_values("date").reset_index(drop=True)
 
-    X = df[feature_cols].copy()
-    y = df[target_col].copy()
+    X = df_clean[feature_cols].copy()
+    y = df_clean[target_col].copy()
 
     print("\nX shape:", X.shape)
     print("y shape:", y.shape)
 
     return X, y
 
-# Split train/test by time (no shuffling, otherways risk of leakage).
+# Chronological train/test split (no shuffling) to avoid leakage. The first `train_ratio` fraction of matches are used for training,the remaining for testing.
 def time_based_split(X: pd.DataFrame, y: pd.Series, train_ratio: float = 0.8) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
     train_size = int(train_ratio * len(X))
 
@@ -61,7 +63,7 @@ def time_based_split(X: pd.DataFrame, y: pd.Series, train_ratio: float = 0.8) ->
 
     return X_train, X_test, y_train, y_test
 
-# Encode match results (H/D/A) as integers.
+# Encode match results ('H', 'D', 'A') as integer labels.
 def encode_target(y_train: pd.Series, y_test: pd.Series) -> tuple[np.ndarray, np.ndarray, LabelEncoder]:
     le = LabelEncoder()
     y_train_enc = le.fit_transform(y_train)
@@ -98,9 +100,8 @@ def train_logistic_model(X_train_scaled: np.ndarray, y_train_enc: np.ndarray) ->
     print("\nModel trained (with Elo features)!")
     return model
 
-# Compute accuracy, log loss, Brier scores and return everything (including probabilities) in a dict.
+# Compute accuracy, log loss and Brier scores for a fitted model. Also returns predicted probabilities and encoded predictions.
 def evaluate_model(model: LogisticRegression, X_test_scaled: np.ndarray, y_test_enc: np.ndarray, le: LabelEncoder) -> dict:
-
     # Step 1: predictions
     y_proba = model.predict_proba(X_test_scaled)
     y_pred_enc = model.predict(X_test_scaled)
