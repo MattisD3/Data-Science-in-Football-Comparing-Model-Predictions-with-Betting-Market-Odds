@@ -1,9 +1,10 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from pathlib import Path
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.ensemble import RandomForestClassifier
@@ -125,13 +126,7 @@ def build_match_level_probabilities(df_test: pd.DataFrame, y_proba_test: np.ndar
     df_home = df_probs[df_probs["is_home"] == 1].copy()
     print("\nTest matches (home rows only):", len(df_home))
 
-    df_home.rename(
-        columns={
-            "team": "home_team",
-            "opponent": "away_team",
-        },
-        inplace=True,
-    )
+    df_home.rename(columns={"team": "home_team", "opponent": "away_team"}, inplace=True)
 
     # Keep only relevant columns
     cols_keep = [
@@ -219,7 +214,7 @@ def plot_model_vs_book_scatter(df_merge: pd.DataFrame, save_path=None) -> None:
     if save_path:
         plt.savefig(save_path,dpi=300)
         plt.close(fig)
-    
+
 # Histograms of errors (model_prob - book_prob) for H/D/A. Centered around 0 means no systematic bias.
 def plot_error_distributions(df_merge: pd.DataFrame, save_path=None) -> None:
     outcomes = [
@@ -285,7 +280,7 @@ def plot_calibration_model_vs_book(df_merge: pd.DataFrame, save_path=None) -> No
     if save_path:
         plt.savefig(save_path,dpi=300)
         plt.close(fig)
-    
+
 # Overlayed histograms of model vs bookmaker probabilities for H/D/A.
 def plot_probability_distributions(df_merge: pd.DataFrame, save_path=None) -> None:
     outcomes = [
@@ -321,7 +316,201 @@ def plot_probability_distributions(df_merge: pd.DataFrame, save_path=None) -> No
         plt.savefig(save_path,dpi=300)
         plt.close(fig)
 
-# Full end-to-end comparison between calibrated RF model and bookmakers.
+# Add per-match error columns (model - bookmakers) for H/D/A.
+def add_error_columns(df_merge: pd.DataFrame) -> pd.DataFrame:
+    df = df_merge.copy()
+    df["err_home"] = df["prob_model_home"] - df["prob_book_home"]
+    df["err_draw"] = df["prob_model_draw"] - df["prob_book_draw"]
+    df["err_away"] = df["prob_model_away"] - df["prob_book_away"]
+    return df
+
+# Compute average prediction errors for each HOME team. This shows whether the model systematically OVERestimates or UNDERestimates teams when they play at home.
+def compute_team_home_bias(df_errors: pd.DataFrame) -> pd.DataFrame:
+    team_bias = (df_errors.groupby("home_team")[["err_home", "err_draw", "err_away"]].mean())
+    return team_bias
+
+# Plot bar chart of HOME-team bias (sorted). Displays how each team is over/underestimated when playing at home.
+def plot_team_home_bias_bar(team_bias: pd.DataFrame, save_path=None) -> None:
+    team_bias_sorted = team_bias.sort_values("err_home", ascending=True)
+    ax = team_bias_sorted["err_home"].plot(kind="bar", figsize=(14, 5))
+    plt.axhline(0, color="black", linewidth=1)
+    plt.title("Model vs Bookmakers bias - Home Win probability (home perspective)")
+    plt.ylabel("Mean error (model - bookmakers)")
+    plt.tight_layout()
+    if save_path is not None:
+        plt.savefig(save_path, dpi=300)
+        plt.close()
+    else:
+        plt.show()
+
+# Heatmap of HOME-team bias (err_home, err_draw, err_away). Sorted so that the most underestimated home teams (most negative bias) appear at the top.
+def plot_team_bias_heatmap(team_bias: pd.DataFrame, save_path=None) -> None:
+    team_bias_sorted = team_bias.sort_values("err_home", ascending=True)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(
+        team_bias_sorted,
+        cmap="coolwarm",
+        center=0,
+        annot=True,
+        fmt=".3f",
+    )
+    plt.title("Team-level model vs bookmakers divergence (mean error) - Home perspective")
+    plt.ylabel("home_team")
+    plt.tight_layout()
+    if save_path is not None:
+        plt.savefig(save_path, dpi=300)
+        plt.close()
+    else:
+        plt.show()
+
+# Compute average prediction errors for each AWAY team. This captures how teams are estimated when they play AWAY.
+# A positive 'err_away' means the model predicts them more likely to win away than bookmakers do (model is optimistic about them).
+def compute_team_away_bias(df_errors: pd.DataFrame) -> pd.DataFrame:
+    team_bias_away = (df_errors.groupby("away_team")[["err_home", "err_draw", "err_away"]].mean().rename_axis("away_team"))
+    return team_bias_away
+
+# Plot bar chart of AWAY-team bias (sorted). Displays how each team is over/underestimated when playing away.
+def plot_team_away_bias_bar(team_bias_away: pd.DataFrame, save_path=None) -> None:
+    team_bias_sorted = team_bias_away.sort_values("err_away", ascending=True)
+
+    plt.figure(figsize=(14, 5))
+    team_bias_sorted["err_away"].plot(kind="bar")
+    plt.axhline(0, color="black", linewidth=1)
+    plt.title("Model vs Bookmakers bias — Away Win probability (away perspective)")
+    plt.ylabel("Mean error (model - bookmakers)")
+    plt.tight_layout()
+
+    if save_path is not None:
+        plt.savefig(save_path, dpi=300)
+        plt.close()
+    else:
+        plt.show()
+
+# Heatmap of AWAY-team bias (err_home / err_draw / err_away) from the p.o.v. of the AWAY team. Sorted so that the most underestimated away teams (most negative bias) appear at the top.
+def plot_team_away_bias_heatmap(team_bias_away: pd.DataFrame, save_path=None) -> None:
+    team_bias_sorted = team_bias_away.sort_values("err_away", ascending=True)
+
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(
+        team_bias_sorted,
+        cmap="coolwarm",
+        center=0,
+        annot=True,
+        fmt=".3f",
+    )
+    plt.title("Team-level model vs bookmakers divergence (mean error) — Away perspective")
+    plt.ylabel("away_team")
+    plt.tight_layout()
+
+    if save_path is not None:
+        plt.savefig(save_path, dpi=300)
+        plt.close()
+    else:
+        plt.show()
+
+# Print top over- and under-estimated teams (by home-win error).
+def print_extreme_teams(team_bias: pd.DataFrame, top_k: int = 5) -> None:
+    most_over = team_bias.sort_values("err_home", ascending=False).head(top_k)
+    most_under = team_bias.sort_values("err_home", ascending=True).head(top_k)
+
+    print("\nMost OVERestimated teams (model probability >> bookmakers):")
+    print(most_over)
+
+    print("\nMost UNDERestimated teams (model probability << bookmakers):")
+    print(most_under)
+    print("="*70)
+
+# Compute global home / draw / away bias.
+def compute_global_bias(df_errors: pd.DataFrame) -> Tuple[float, float, float]:
+    home_bias = float(df_errors["err_home"].mean())
+    draw_bias = float(df_errors["err_draw"].mean())
+    away_bias = float(df_errors["err_away"].mean())
+    return home_bias, draw_bias, away_bias
+
+# Plot global bias bar chart.
+def plot_global_bias_bar(home_bias: float, draw_bias: float, away_bias: float, save_path=None) -> None:
+    biases = [home_bias, draw_bias, away_bias]
+    labels = ["Home", "Draw", "Away"]
+
+    plt.figure(figsize=(6, 4))
+    plt.bar(labels, biases)
+    plt.axhline(0, color="black", linewidth=1)
+    plt.title("Systematic model vs bookmakers bias")
+    plt.ylabel("Mean error (model - bookmakers)")
+    plt.tight_layout()
+    if save_path is not None:
+        plt.savefig(save_path, dpi=300)
+        plt.close()
+    else:
+        plt.show()
+
+# Compute Big Six vs others bias (home and away perspective).
+def compute_big_six_bias(df_errors: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    big_six = {
+        "Arsenal",
+        "Chelsea",
+        "Liverpool",
+        "Manchester City",
+        "Manchester United",
+        "Tottenham Hotspur",
+    }
+
+    # Home perspective: group by whether home_team is Big Six.
+    df_errors["is_big_six_home"] = df_errors["home_team"].isin(big_six)
+
+    home_bias_group = (
+        df_errors.groupby(
+            np.where(df_errors["is_big_six_home"], "Big Six (home)", "Other teams")
+        )[["err_home", "err_draw", "err_away"]]
+        .mean()
+        .rename_axis("group")
+    )
+
+    # Away perspective: group by whether AWAY team is Big Six.
+    df_errors["is_big_six_away"] = df_errors["away_team"].isin(big_six)
+
+    away_bias_group = (
+        df_errors.groupby(
+            np.where(df_errors["is_big_six_away"], "Big Six (away)", "Other teams")
+        )[["err_home", "err_draw", "err_away"]]
+        .mean()
+        .rename_axis("group")
+    )
+
+    return home_bias_group, away_bias_group
+
+# Plot Big Six vs others bias (stacked outcome bars).
+def plot_big_six_bias(bias_home: pd.DataFrame, bias_away: pd.DataFrame, save_path_home=None, save_path_away=None) -> None:
+    # Home team perspective
+    plt.figure(figsize=(8, 5))
+    bias_home[["err_home", "err_draw", "err_away"]].plot(
+        kind="bar", figsize=(8, 5)
+    )
+    plt.axhline(0, color="black", linewidth=1)
+    plt.title("Model vs Bookmakers bias — Big Six vs Others (Home team)")
+    plt.ylabel("Mean error (model - bookmakers)")
+    plt.tight_layout()
+    if save_path_home is not None:
+        plt.savefig(save_path_home, dpi=300)
+        plt.close()
+    else:
+        plt.show()
+
+    # Away team perspective
+    plt.figure(figsize=(8, 5))
+    bias_away[["err_home", "err_draw", "err_away"]].plot(
+        kind="bar", figsize=(8, 5)
+    )
+    plt.axhline(0, color="black", linewidth=1)
+    plt.title("Model vs Bookmakers bias — Big Six vs Others (Away team)")
+    plt.ylabel("Mean error (model - bookmakers)")
+    plt.tight_layout()
+    if save_path_away is not None:
+        plt.savefig(save_path_away, dpi=300)
+        plt.close()
+    else:
+        plt.show()
+
 def run_comparison(random_state: int = 42) -> None:
     # 1) Load long-format features
     df_long = load_long_features()
@@ -355,6 +544,7 @@ def run_comparison(random_state: int = 42) -> None:
     clf = build_calibrated_random_forest(random_state=random_state)
     clf.fit(X_train_scaled, y_train_enc)
     print("\nCalibrated Random Forest (Platt) trained!")
+    print("="*70)
 
     # 8) Predicted probabilities on test set
     y_proba_test = clf.predict_proba(X_test_scaled)
@@ -375,7 +565,8 @@ def run_comparison(random_state: int = 42) -> None:
     df_metrics = compute_rmse_mae(df_merge)
 
     # 12) Plots: scatter, errors, calibration, distributions
-    results_dir=Path("results")
+    results_dir = Path("results")  
+
     scatter_path = results_dir / "scatter_model_vs_book_22_23.png"
     errors_path = results_dir / "errors_model_vs_book_22_23.png"
     calib_path = results_dir / "calibration_model_vs_book_22_23.png"
@@ -385,14 +576,74 @@ def run_comparison(random_state: int = 42) -> None:
     plot_error_distributions(df_merge, save_path=errors_path)
     plot_calibration_model_vs_book(df_merge, save_path=calib_path)
     plot_probability_distributions(df_merge, save_path=dist_path)
-    
 
-    # 13) Save metrics summary
+    # 13) Team-level & Big Six divergence analysis
+    df_errors = add_error_columns(df_merge)
+
+    # a) Basic description of errors
+    print("="*70)
+    print("\nError columns describe():")
+    print(df_errors[["err_home", "err_draw", "err_away"]].describe())
+
+    # b) Team bias – HOME team perspective
+    print("="*70)
+    team_home_bias = compute_team_home_bias(df_errors)
+    print("\nTeam-level mean errors (home-team perspective):")
+    print(team_home_bias)
+    print("="*70)
+
+    team_home_bar_path = results_dir / "team_home_bias_bar_22_23.png"
+    team_home_heatmap_path = results_dir / "team_home_bias_heatmap_22_23.png"
+
+    plot_team_home_bias_bar(team_home_bias, save_path=team_home_bar_path)
+    plot_team_bias_heatmap(team_home_bias, save_path=team_home_heatmap_path)
+    # Top overrated/underrated teams at home
+    print_extreme_teams(team_home_bias, top_k=5)
+
+    # c) Team bias – AWAY team perspective
+    team_away_bias = compute_team_away_bias(df_errors)
+    print("\nTeam-level mean errors (away-team perspective):")
+    print(team_away_bias)
+
+    team_away_bar_path = results_dir / "team_away_bias_bar_22_23.png"
+    team_away_heatmap_path = results_dir / "team_away_bias_heatmap_22_23.png"
+
+    plot_team_away_bias_bar(team_away_bias, save_path=team_away_bar_path)
+    plot_team_away_bias_heatmap(team_away_bias, save_path=team_away_heatmap_path)
+
+    # d) Global home/draw/away bias
+    home_bias, draw_bias, away_bias = compute_global_bias(df_errors)
+    print("="*70)
+    print("\nGlobal bias (mean model - bookmakers error):")
+    print("Home bias:", round(home_bias, 4))
+    print("Draw bias:", round(draw_bias, 4))
+    print("Away bias:", round(away_bias, 4))
+
+    global_bias_path = results_dir / "global_bias_bar_22_23.png"
+    plot_global_bias_bar(home_bias, draw_bias, away_bias, save_path=global_bias_path)
+
+    # e) Big Six vs Other teams
+    bias_home, bias_away = compute_big_six_bias(df_errors)
+    print("="*70)
+    print("\nBig Six vs Other teams (home perspective):")
+    print(bias_home)
+    print("\nBig Six vs Other teams (away perspective):")
+    print(bias_away)
+    print("="*70)
+
+    big_six_home_path = results_dir / "big_six_vs_others_home_bias_22_23.png"
+    big_six_away_path = results_dir / "big_six_vs_others_away_bias_22_23.png"
+    plot_big_six_bias(bias_home, bias_away, save_path_home=big_six_home_path, save_path_away=big_six_away_path)
+
+    # 14) Save metrics summary (RMSE / MAE)
     df_metrics.to_csv(OUT_PATH, index=False)
     print(f"\nSummary metrics saved to: {OUT_PATH}")
     print(f"Plots saved to: {results_dir}")
 
-
+    # 15) End of the code
+    print("*"*50)
+    print("*"* 20 + " THE END " + "*"* 20 )
+    print("*"*50)
 
 if __name__ == "__main__":
     run_comparison()
