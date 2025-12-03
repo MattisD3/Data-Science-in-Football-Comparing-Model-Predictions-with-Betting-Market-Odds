@@ -1,8 +1,12 @@
 import pandas as pd
+from pathlib import Path
 
-# Path
-MATCHES_PATH = "data/processed/clean_matches_22_23.csv"
-BOOKMAKERS_PATH = "data/processed/clean_bookmakers_22_23.csv" 
+# Input paths
+MATCHES_PATH = Path("data/processed/clean_matches_22_23.csv")
+BOOKMAKERS_PATH = Path("data/processed/clean_bookmakers_22_23.csv")
+# Output paths
+MATCHES_WIDE_PATH = Path("data/processed/matches_wide_22_23.csv")
+MATCHES_LONG_PATH = Path("data/processed/matches_long_22_23.csv")
 
 def load_clean_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     matches_df = pd.read_csv(MATCHES_PATH)
@@ -74,7 +78,7 @@ def build_matches_long(matches_wide: pd.DataFrame) -> pd.DataFrame:
     rows = []
 
     for index, row in matches_wide.iterrows():
-        # Home team row
+        # Home team row (perspective of the home team)
         rows.append({
             "match_id": row["match_id"],
             "season": row["season"],
@@ -95,7 +99,7 @@ def build_matches_long(matches_wide: pd.DataFrame) -> pd.DataFrame:
             "result": row["result"],
         })
 
-        # Away team row
+        # Away team row (perspective of the away team)
         rows.append({
             "match_id": row["match_id"],
             "season": row["season"],
@@ -120,37 +124,38 @@ def build_matches_long(matches_wide: pd.DataFrame) -> pd.DataFrame:
     matches_long = matches_long.sort_values(["date", "match_id", "team"]).reset_index(drop=True)
     return matches_long
 
+# Execute full merging data pipeline and return cleaned DataFrame.
+def run_merge_data(wide_path: Path = MATCHES_WIDE_PATH, long_path: Path = MATCHES_LONG_PATH) -> None:
+    print("\n===== Loading cleaned data (03) =====")
+    # 1. Load cleaned data
+    matches_df, bookmakers_df = load_clean_data()
+    print(f"Matches loaded: {matches_df.shape} | Bookmakers loaded: {bookmakers_df.shape}") # Must be (380, 13) | (380,9)
 
+    # 2. Merge dataframes
+    merged_df = merge_matches_and_odds(matches_df, bookmakers_df)
+    print(f"Merged shape: {merged_df.shape} (3 columns used for merge)") # Must be (380, 19) (19= 13 + 9 - 3 common columns) (result, match_id, season)
+
+    # 3. Add result column
+    merged_df = add_result_column(merged_df)
+
+    # 4. Build wide format (one row per match)
+    matches_wide = build_matches_wide(merged_df)
+    print(f"matches_wide shape: {matches_wide.shape}") # Must be (380, 22) (19+3)
+
+    # 5. Build long format (two rows per match, one for each team)
+    matches_long = build_matches_long(matches_wide)
+    print(f"matches_long shape: {matches_long.shape}") # Must be (760, 17)
+
+    # 6. Save outputs
+    wide_path.parent.mkdir(parents=True, exist_ok=True) 
+    
+    matches_wide.to_csv(wide_path, index=False)
+    matches_long.to_csv(long_path, index=False)
+
+    print("\nSaved Outputs:")
+    print(f"- Wide format: {wide_path}")
+    print(f"- Long format: {long_path}")
+    print("===== Merge Pipeline Complete. ✅ =====\n")
 
 if __name__ == "__main__":
-    print("\n--- Loading cleaned data ---")
-    matches_df, bookmakers_df = load_clean_data()
-    print("Matches loaded:", matches_df.shape) # should be (380,13)
-    print("Bookmakers loaded:", bookmakers_df.shape) # should be (380,9)
-
-    print("\n--- Merging matches and odds ---")
-    merged_df = merge_matches_and_odds(matches_df, bookmakers_df)
-    print("Merged shape:", merged_df.shape) # should be (380,19) (19 = 13 + 9 - 3) 3 is date, home_team, away_team because 
-                                                                                                # they are the same for both)
-
-    print("\n--- Adding result column ---")
-    merged_df = add_result_column(merged_df)
-    print("Columns after result:", merged_df.columns)
-
-    print("\n--- Building matches_wide ---")
-    matches_wide = build_matches_wide(merged_df)
-    print("matches_wide shape:", matches_wide.shape) # should be (380,22) (19 + result + match_id + season)
-
-    print("\n--- Building matches_long ---")
-    matches_long = build_matches_long(matches_wide)
-    print("matches_long shape:", matches_long.shape)  # should be (760, 17)
-
-    print("\n--- Preview matches_long ---")
-    print(matches_long.head())
-
-    # Save outputs
-    matches_wide.to_csv("data/processed/matches_wide_22_23.csv", index=False)
-    matches_long.to_csv("data/processed/matches_long_22_23.csv", index=False)
-    print("\nSaved:")
-    print("- data/processed/matches_wide_22_23.csv")
-    print("- data/processed/matches_long_22_23.csv")
+    run_merge_data(MATCHES_WIDE_PATH, MATCHES_LONG_PATH)

@@ -2,15 +2,16 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-# Path
-FEATURES_OUTPUT_PATH = "data/processed/features_matches_long_22_23.csv"
+# Input path
 MATCHES_LONG_PATH = "data/processed/matches_long_22_23.csv"
+# Output path
+FEATURES_OUTPUT_PATH = "data/processed/features_matches_long_22_23.csv"
 
 # Load long-format match data (two rows per match: one per team).
 def load_long_matches(path: str = MATCHES_LONG_PATH) -> pd.DataFrame:
     df = pd.read_csv(path)
     df = df.sort_values(["team", "date"]).reset_index(drop=True) # Make sure data is sorted for rolling calculations
-    print(f"Loaded long matches: {df.shape}")
+    print(f"  -> Loaded long matches: {df.shape}")
     return df
 
 # Add basic difference columns like goal_diff and xg_diff.
@@ -22,18 +23,20 @@ def add_basic_diff_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 # Add points column (3/1/0) from the team perspective.
 def add_points_column(df: pd.DataFrame) -> pd.DataFrame:
-
     def get_points(row):
-        if row["result"] == "H" and row["is_home"] == 1: # Home win
-            return 3
-  
-        if row["result"] == "A" and row["is_home"] == 0: # Away win
-            return 3
+        # Home team's perspective
+        if row["is_home"] == 1:
+            if row["result"] == "H": return 3 # Home win (H)
+            if row["result"] == "D": return 1 # Draw (D)
+            return 0 # Loss (A)
         
-        if row["result"] == "D": # Draw
-            return 1
+        # Away team's perspective
+        if row["is_home"] == 0:
+            if row["result"] == "A": return 3 # Away win (A)
+            if row["result"] == "D": return 1 # Draw (D)
+            return 0 # Loss (H)
         
-        return 0 # Loss
+        return 0
 
     df = df.copy()
     df["points"] = df.apply(get_points, axis=1)
@@ -161,40 +164,47 @@ def build_model_dataset(df: pd.DataFrame) -> pd.DataFrame:
         "rolling_goal_diff_5",
         "rolling_home_goal_diff_5",
         "rolling_away_goal_diff_5",
-
     ]
 
     existing_cols = [c for c in cols if c in df.columns]
     return df[existing_cols].copy()
 
+# Save the final features dataset.
 def save_features(df: pd.DataFrame, path: str = FEATURES_OUTPUT_PATH) -> None:
-    """Save the final features dataset to CSV."""
     df.to_csv(path, index=False)
-    print(f"Saved features dataset to: {path}")
+    print(f"  -> Saved features dataset to: {path}")
 
+# Main function to execute the full feature engineering pipeline.
+def run_feature_engineering(input_path: Path = MATCHES_LONG_PATH, output_path: Path = FEATURES_OUTPUT_PATH) -> pd.DataFrame:
+    print("\n===== Engineering Features Pipeline (04) =====")
+    
+    # 1. Load data
+    df_long = load_long_matches(input_path)
+
+    # 2. Add basic differences
+    df_long = add_basic_diff_columns(df_long)
+    print("  -> Basic diff columns added (goal_diff, xg_diff).")
+
+    # 3. Add points
+    df_long = add_points_column(df_long)
+    print("  -> Points column added.")
+
+    # 4. Add rolling features (window=5)
+    df_long = add_rolling_xg_features(df_long, window=5)
+    df_long = add_rolling_points_features(df_long, window=5)
+    df_long = add_rolling_goal_diff_features(df_long, window=5)
+    print("  -> All rolling features added (xG, Points, Goal Diff).")
+
+    # 5. Build final dataset
+    df_features = build_model_dataset(df_long)
+    print(f"  -> Final features shape: {df_features.shape}")
+
+    # 6. Save features
+    save_features(df_features, output_path)
+    
+    print("===== Feature Engineering Complete. ✅ =====\n")
+    return df_features
 
 if __name__ == "__main__":
-    print("\n--- Loading long-format matches ---")
-    df_long = load_long_matches()
+    run_feature_engineering()
 
-    print("\n--- Adding basic diff columns (goal_diff, xg_diff) ---")
-    df_long = add_basic_diff_columns(df_long)
-
-    print("\n--- Adding points column ---")
-    df_long = add_points_column(df_long)
-
-    print("\n--- Adding rolling xG features ---")
-    df_long = add_rolling_xg_features(df_long, window=5)
-
-    print("\n--- Adding rolling points features ---")
-    df_long = add_rolling_points_features(df_long, window=5)
-
-    print("\n--- Adding rolling goal diff features ---")
-    df_long = add_rolling_goal_diff_features(df_long, window=5)
-
-    print("\n--- Building final modeling dataset ---")
-    df_features = build_model_dataset(df_long)
-    print("Final features shape:", df_features.shape)
-
-    print("\n--- Saving features ---")
-    save_features(df_features, FEATURES_OUTPUT_PATH)

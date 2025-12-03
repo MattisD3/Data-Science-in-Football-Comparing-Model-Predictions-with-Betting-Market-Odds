@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-
+from pathlib import Path
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
@@ -10,38 +10,28 @@ from sklearn.metrics import accuracy_score, log_loss, brier_score_loss
 from xgboost import XGBClassifier
 import matplotlib.pyplot as plt
 
-# Paths
-FEATURES_ELO_PATH = "data/processed/features_matches_long_elo_22_23.csv"
-CALIB_SUMMARY_PATH = "results/calibration_summary_22_23.csv"
-
+# Input path
+FEATURES_ELO_PATH = Path("data/processed/features_matches_long_elo_22_23.csv")
+# Output path
+CALIB_SUMMARY_PATH = Path("results/calibration_summary_22_23.csv")
+CALIB_PLOT_BEST_PATH = Path("results/calibration_plot_best.png")
 
 # Load long-format match features already enriched with Elo (two rows per match, one per team).
-def load_features_with_elo(path: str = FEATURES_ELO_PATH) -> pd.DataFrame:
+def load_features_with_elo(path: Path = FEATURES_ELO_PATH) -> pd.DataFrame:
     df = pd.read_csv(path)
-    print(f"Loaded long features:{df.shape}")
+    print(f"  -> Loaded long features: {df.shape}")
     return df
 
 # Drop rows with NaNs in selected features or target, sort by date and return feature matrix X and target vector y.
 def prepare_dataset(df: pd.DataFrame, feature_cols: list[str], target_col: str = "result") -> tuple[pd.DataFrame, pd.Series]:
-
-    print("\nShape BEFORE dropna:", df.shape)
-    print("NaN per selected column BEFORE drop:")
-    print(df[feature_cols + [target_col]].isna().sum())
-
     df_clean = df.dropna(subset=feature_cols + [target_col]).reset_index(drop=True)
 
-    print("\nShape AFTER dropna:", df_clean.shape)
-    print("NaN per selected column AFTER drop:")
-    print(df_clean[feature_cols + [target_col]].isna().sum())
-
+    # Ensure date is datetime and sort chronologically
     df_clean["date"] = pd.to_datetime(df_clean["date"])
     df_clean = df_clean.sort_values("date").reset_index(drop=True)
 
     X = df_clean[feature_cols].copy()
     y = df_clean[target_col].copy()
-
-    print("\nX shape:", X.shape)
-    print("y shape:", y.shape)
 
     return X, y
 
@@ -54,14 +44,7 @@ def time_based_split(X: pd.DataFrame, y: pd.Series, train_ratio: float = 0.8) ->
     y_train = y.iloc[:train_size]
     y_test = y.iloc[train_size:]
 
-    print("\nTrain shapes:", X_train.shape, y_train.shape)
-    print("Test shapes :", X_test.shape, y_test.shape)
-
-    print("\nNaN in TRAIN features:")
-    print(X_train.isna().sum())
-
-    print("\nNaN in TEST features:")
-    print(X_test.isna().sum())
+    print(f"  -> Train size: {len(X_train)} | Test size: {len(X_test)} ")
 
     return X_train, X_test, y_train, y_test
 
@@ -71,8 +54,7 @@ def encode_target(y_train: pd.Series, y_test: pd.Series) -> tuple[np.ndarray, np
     y_train_enc = le.fit_transform(y_train)
     y_test_enc = le.transform(y_test)
 
-    print("\nClasses:", le.classes_)  
-    print("First 10 encoded y_train:", y_train_enc[:10])
+    print(f"  -> Target encoded. Classes: {le.classes_}")
 
     return y_train_enc, y_test_enc, le
 
@@ -82,37 +64,32 @@ def scale_features(X_train: pd.DataFrame, X_test: pd.DataFrame) -> tuple[np.ndar
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
-    print("\nTrain scaled shape:", X_train_scaled.shape)
-    print("Test scaled shape :", X_test_scaled.shape)
-
-    print("NaN in X_train_scaled:", np.isnan(X_train_scaled).sum())
-    print("NaN in X_test_scaled :", np.isnan(X_test_scaled).sum())
-
+    print(f"  -> Features scaled. Scaled Train shape: {X_train_scaled.shape}")
     return X_train_scaled, X_test_scaled, scaler
 
-# Construct base classifiers (without calibration). Returns a dict {model_name: estimator}.
+# Build base classifiers (without calibration). Returns a dict {model_name: estimator}.
 def build_base_models(random_state: int = 42) -> dict[str, object]:
     models: dict[str, object] = {}
 
-    # Multinomial logistic regression
+    # 1. Multinomial logistic regression
     models["Logistic"] = LogisticRegression(
-        multi_class="multinomial",
         solver="lbfgs",
         max_iter=500,
         random_state=random_state,
+        n_jobs=-1
     )
 
-    # Random Forest
+    # 2. Random Forest
     models["RandomForest"] = RandomForestClassifier(
         n_estimators=500,
         max_depth=None,
         min_samples_split=2,
         min_samples_leaf=1,
         random_state=random_state,
-        n_jobs=1,
+        n_jobs=-1,
     )
 
-    # XGBoost
+    # 3. XGBoost
     models["XGBoost"] = XGBClassifier(
         objective="multi:softprob",
         num_class=3,
@@ -148,10 +125,8 @@ def evaluate_predictions(model_name: str, calibration: str, y_true_enc: np.ndarr
     ll = float(log_loss(y_true_enc, y_proba))
     brier_scores, mean_brier = compute_brier_scores(y_true_enc, y_proba, classes)
 
-    print(
-        f"\n[{model_name} | {calibration}] "
-        f"Accuracy={acc:.3f}  LogLoss={ll:.4f}  MeanBrier={mean_brier:.4f}"
-    )
+    print(f"  -> {model_name} ({calibration}): "
+          f"Accuracy={acc:.3f} | LogLoss={ll:.4f} | MeanBrier={mean_brier:.4f}")
 
     return {
         "model": model_name,
@@ -165,12 +140,12 @@ def evaluate_predictions(model_name: str, calibration: str, y_true_enc: np.ndarr
     }
 
 # Save summary metrics to CSV in the results folder.
-def save_calibration_summary(summary: pd.DataFrame, path: str = CALIB_SUMMARY_PATH) -> None:
+def save_calibration_summary(summary: pd.DataFrame, path: Path= CALIB_SUMMARY_PATH) -> None:
     summary.to_csv(path, index=False)
-    print(f"\nCalibration summary saved to: {path}")
+    print(f"\n  -> Calibration summary saved to: {path}")
 
 # Plot multiclass calibration curves (one curve per class).
-def plot_multiclass_calibration(y_true_enc: np.ndarray, y_proba: np.ndarray, classes: np.ndarray, n_bins: int = 10, title: str = "Calibration curves") -> None:
+def plot_multiclass_calibration(y_true_enc: np.ndarray, y_proba: np.ndarray, classes: np.ndarray, save_path: Path= CALIB_PLOT_BEST_PATH, n_bins: int = 10, title: str = "Calibration curves") -> None:
     plt.figure(figsize=(8, 6))
 
     for class_idx, class_label in enumerate(classes):
@@ -190,30 +165,30 @@ def plot_multiclass_calibration(y_true_enc: np.ndarray, y_proba: np.ndarray, cla
             pred_mean,
             true_frac,
             marker="o",
+            linestyle = "-",
             label=f"Class {class_label}",
         )
 
-    # Perfect calibration line
     plt.plot([0, 1], [0, 1], "--", color="black", label="Perfect calibration")
 
     plt.xlabel("Predicted probability")
-    plt.ylabel("Observed frequency")
+    plt.ylabel("Observed frequency (True probability)")
     plt.title(title)
     plt.legend()
-    plt.grid(True)
+    plt.grid(True, alpha=0.5)
     plt.tight_layout()
-    plt.show()
+    plt.savefig(save_path)
+    plt.close()
+    print(f"  -> Calibration plot saved to: {save_path}")
 
 # Select the best (model, calibration) by lowest log loss and plot its calibration curves.
-def plot_best_calibration(results: list[dict], y_true_enc: np.ndarray, classes: np.ndarray) -> None:
+def plot_best_calibration(results: list[dict], y_true_enc: np.ndarray, classes: np.ndarray, plot_path: Path=CALIB_PLOT_BEST_PATH) -> None:
     best = min(results, key=lambda r: r["log_loss"])
-    title = f"Calibration curves ({best['model']} + {best['calibration']})"
+    title = f"Calibration Curve: {best['model']} + {best['calibration']}"
 
-    print(
-        f"\nBest combination by log loss: "
-        f"{best['model']} | {best['calibration']} "
-        f"(log_loss={best['log_loss']:.4f})"
-    )
+    print(f"  -> Best combination (min Log Loss): "
+          f"{best['model']} | {best['calibration']} (LL={best['log_loss']:.4f}, Brier={best['mean_brier']:.4f})")
+
 
     plot_multiclass_calibration(
         y_true_enc=y_true_enc,
@@ -221,20 +196,15 @@ def plot_best_calibration(results: list[dict], y_true_enc: np.ndarray, classes: 
         classes=classes,
         n_bins=10,
         title=title,
+        save_path=plot_path
     )
 
 
-# Main function: run raw / Platt / Isotonic calibration for Logistic, RandomForest and XGBoost.
-# Returns: 
-    # summary  : DataFrame with metrics 
-    # results  : list of dicts including probabilities and metrics
-    # y_test   : encoded test labels  
-    # classes  : label encoder classes (['A', 'D', 'H'])
+# Main function: run Raw / Platt / Isotonic calibration for Logistic, RandomForest and XGBoost.
 def run_calibration_experiments() -> tuple[pd.DataFrame, list[dict], np.ndarray, np.ndarray]:
-    # 1) Load data
-    df = load_features_with_elo()
+    print("\n===== Starting Calibration Experiments (11) =====")
 
-    # 2) Choose features and target
+    # --- Configuration ---
     feature_cols = [
         "is_home",
         "rolling_xg_for_5",
@@ -247,91 +217,56 @@ def run_calibration_experiments() -> tuple[pd.DataFrame, list[dict], np.ndarray,
         "elo_diff_home",
     ]
 
+    # 1. Load data
+    df = load_features_with_elo()
+
+    # 2. Prepare dataset
     X, y = prepare_dataset(df, feature_cols, target_col="result")
 
-    # 3) Time-based split
+    # 3. Time-based split
     X_train, X_test, y_train, y_test = time_based_split(X, y, train_ratio=0.8)
 
-    # 4) Encode target
+    # 4. Preprocessing (Encode target)
     y_train_enc, y_test_enc, le = encode_target(y_train, y_test)
 
-    # 5) Scale features (same scaled inputs for all models)
+    # 5. Scale features (same scaled inputs for all models)
     X_train_scaled, X_test_scaled, _ = scale_features(X_train, X_test)
 
-    # 6) Build base models
+    # 6. Build base models
     base_models = build_base_models(random_state=42)
 
-    # 7) For each model, evaluate:
-        # raw probabilities
-        # Platt scaling (sigmoid)
-        #Isotonic regression
+    # 7. Run Experiments: Raw, Platt, Isotonic for each model
     results: list[dict] = []
 
     for model_name, base_estimator in base_models.items():
-        print("\n" + "=" * 70)
-        print(f"Model: {model_name}")
-        print("=" * 70)
+        print(f" --- Running experiments for: {model_name} ---")
 
         # --- Raw (no calibration) ---
         raw_model = base_estimator
         raw_model.fit(X_train_scaled, y_train_enc)
-
         y_proba_raw = raw_model.predict_proba(X_test_scaled)
         y_pred_raw = raw_model.predict(X_test_scaled)
-
-        res_raw = evaluate_predictions(
-            model_name=model_name,
-            calibration="raw",
-            y_true_enc=y_test_enc,
-            y_proba=y_proba_raw,
-            y_pred_enc=y_pred_raw,
-            classes=le.classes_,
-        )
+        res_raw = evaluate_predictions(model_name, "raw", y_test_enc, y_proba_raw, y_pred_raw, le.classes_)
         results.append(res_raw)
 
-        # --- Platt scaling (sigmoid) ---
-        platt = CalibratedClassifierCV(
-            estimator=base_estimator,
-            method="sigmoid",
-            cv=3,
-        )
-        platt.fit(X_train_scaled, y_train_enc)
 
+        # --- Platt scaling (sigmoid) ---
+        platt = CalibratedClassifierCV(estimator=base_estimator, method="sigmoid", cv=3) 
+        platt.fit(X_train_scaled, y_train_enc)
         y_proba_platt = platt.predict_proba(X_test_scaled)
         y_pred_platt = platt.predict(X_test_scaled)
-
-        res_platt = evaluate_predictions(
-            model_name=model_name,
-            calibration="Platt",
-            y_true_enc=y_test_enc,
-            y_proba=y_proba_platt,
-            y_pred_enc=y_pred_platt,
-            classes=le.classes_,
-        )
+        res_platt = evaluate_predictions(model_name, "Platt",y_test_enc, y_proba_platt, y_pred_platt,le.classes_)
         results.append(res_platt)
 
         # --- Isotonic regression ---
-        iso = CalibratedClassifierCV(
-            estimator=base_estimator,
-            method="isotonic",
-            cv=3,
-        )
+        iso = CalibratedClassifierCV(estimator=base_estimator, method="isotonic",cv=3)
         iso.fit(X_train_scaled, y_train_enc)
-
         y_proba_iso = iso.predict_proba(X_test_scaled)
         y_pred_iso = iso.predict(X_test_scaled)
-
-        res_iso = evaluate_predictions(
-            model_name=model_name,
-            calibration="Isotonic",
-            y_true_enc=y_test_enc,
-            y_proba=y_proba_iso,
-            y_pred_enc=y_pred_iso,
-            classes=le.classes_,
-        )
+        res_iso = evaluate_predictions(model_name, "Isotonic", y_test_enc, y_proba_iso, y_pred_iso, le.classes_)
         results.append(res_iso)
 
-    # 8) Build summary DataFrame
+    # 8. Build summary DataFrame
     summary = pd.DataFrame(
         [
             {
@@ -348,16 +283,22 @@ def run_calibration_experiments() -> tuple[pd.DataFrame, list[dict], np.ndarray,
     # Sort for nicer display
     summary = summary.sort_values(["model", "calibration"]).reset_index(drop=True)
 
-    print("\n\n=== Calibration summary ===")
-    print(summary)
+    print("\n----- Calibration Summary (Ranked by Log Loss) -----")
+    print(summary.to_string())
 
     return summary, results, y_test_enc, le.classes_
 
-if __name__ == "__main__":
+# Run the full calibration workflow:
+def run_full_calibration_pipeline() -> pd.DataFrame:
     summary_df, all_results, y_test_enc, classes = run_calibration_experiments()
 
-    # Save to CSV
-    save_calibration_summary(summary_df, CALIB_SUMMARY_PATH)
+    save_calibration_summary(summary_df)
 
-    # Plot the best combination by log loss
-    plot_best_calibration(all_results, y_test_enc, classes)
+    plot_best_calibration(all_results, y_test_enc, classes, CALIB_PLOT_BEST_PATH)
+
+    print("===== Calibration Experiments (11) Complete. ✅ =====")
+    return summary_df
+
+
+if __name__ == "__main__":
+    run_full_calibration_pipeline()

@@ -1,47 +1,38 @@
 import pandas as pd
 import numpy as np
-
+from pathlib import Path
 from sklearn.preprocessing import LabelEncoder
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, log_loss, brier_score_loss
 from sklearn.calibration import calibration_curve
 import matplotlib.pyplot as plt
+import xgboost as xgb
+import os
 
-# Path
-FEATURES_ELO_PATH = "data/processed/features_matches_long_elo_22_23.csv"
-
+# Input path  
+FEATURES_ELO_PATH = Path("data/processed/features_matches_long_elo_22_23.csv")
+#Output path
+CALIBRATION_PLOT_XGB_PATH = Path("results/calibration_plot_xgboost.png")
 
 # Load long-format match features already enriched with Elo (two rows per match, one per team).
-def load_long_features_with_elo(path: str = FEATURES_ELO_PATH) -> pd.DataFrame:
+def load_long_features_with_elo(path: Path= FEATURES_ELO_PATH) -> pd.DataFrame:
     df = pd.read_csv(path)
-    print(f"Loaded long features: {df.shape}")
+    print(f"  -> Loaded long features : {df.shape}")
     return df
 
 # Drop rows with NaNs in selected features or target, sort by date and return feature matrix X and target vector y.
 def prepare_dataset(df: pd.DataFrame, feature_cols: list[str], target_col: str = "result") -> tuple[pd.DataFrame, pd.Series]:
-    
-    print("\nShape BEFORE dropna:", df.shape)
-    print("NaN per column BEFORE drop:")
-    print(df[feature_cols + [target_col]].isna().sum())
-
     df_clean = df.dropna(subset=feature_cols + [target_col]).reset_index(drop=True)
 
-    print("\nShape AFTER dropna:", df_clean.shape)
-    print("NaN per column AFTER drop:")
-    print(df_clean[feature_cols + [target_col]].isna().sum())
-
+    # Ensure date is datetime and sort chronologically
     df_clean["date"] = pd.to_datetime(df_clean["date"])
     df_clean = df_clean.sort_values("date").reset_index(drop=True)
 
     X = df_clean[feature_cols].copy()
     y = df_clean[target_col].copy()
 
-    print("\nX shape:", X.shape)
-    print("y shape:", y.shape)
-
     return X, y
 
-# Chronological train/test split (no shuffling) to avoid leakage. The first `train_ratio` fraction of matches are used for training,the remaining for testing.
+# Chronological train/test split (no shuffling) to avoid leakage. The first `train_ratio` fraction of observations are used for training, the remaining ones for testing.
 def time_based_split(X: pd.DataFrame, y: pd.Series, train_ratio: float = 0.8) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
     train_size = int(train_ratio * len(X))
 
@@ -50,14 +41,7 @@ def time_based_split(X: pd.DataFrame, y: pd.Series, train_ratio: float = 0.8) ->
     y_train = y.iloc[:train_size]
     y_test = y.iloc[train_size:]
 
-    print("\nTrain shapes:", X_train.shape, y_train.shape)
-    print("Test shapes :", X_test.shape, y_test.shape)
-
-    print("\nNaN in TRAIN features:")
-    print(X_train.isna().sum())
-
-    print("\nNaN in TEST features:")
-    print(X_test.isna().sum())
+    print(f"  -> Train size: {len(X_train)} | Test size: {len(X_test)} ")
 
     return X_train, X_test, y_train, y_test
 
@@ -67,55 +51,57 @@ def encode_target(y_train: pd.Series, y_test: pd.Series) -> tuple[np.ndarray, np
     y_train_enc = le.fit_transform(y_train)
     y_test_enc = le.transform(y_test)
 
-    print("\nClasses:", le.classes_)
-    print("First 10 encoded y_train:", y_train_enc[:10])
+    print(f"  -> Target encoded. Classes: {le.classes_}")
 
     return y_train_enc, y_test_enc, le
 
-# Train a RandomForest classifier for multiclass (H/D/A) match outcome prediction.
-def train_random_forest(X_train: pd.DataFrame, y_train_enc: np.ndarray) -> RandomForestClassifier:
-    rf = RandomForestClassifier(
-        n_estimators=500,
-        max_depth=None,
-        min_samples_split=2,
-        min_samples_leaf=1,
+# Train an XGBoost classifier for multiclass (H/D/A) match outcome prediction.
+def train_xgboost(X_train: pd.DataFrame,y_train_enc: np.ndarray) -> xgb.XGBClassifier:
+    model = xgb.XGBClassifier(
+        objective="multi:softprob",  # output class probabilities
+        num_class=3,
+        n_estimators=400,
+        learning_rate=0.05,
+        max_depth=4,
+        subsample=0.9,
+        colsample_bytree=0.9,
+        reg_lambda=1.0,
         random_state=42,
-        n_jobs=-1,  # use all available CPU cores
+        n_jobs=-1,
+        eval_metric="mlogloss",      # avoid warnings in fit
     )
 
-    rf.fit(X_train, y_train_enc)
-    print("\nRandom Forest model trained!")
-    return rf
+    model.fit(X_train, y_train_enc)
+    return model
 
 # Compute accuracy, log loss and Brier scores for a fitted model. Also returns predicted probabilities and encoded predictions.
-def evaluate_model(model: RandomForestClassifier, X_test: pd.DataFrame, y_test_enc: np.ndarray, le: LabelEncoder) -> dict:
-    # Predicted probabilities and labels
+def evaluate_model(model: xgb.XGBClassifier, X_test: pd.DataFrame, y_test_enc: np.ndarray, le: LabelEncoder) -> dict:
+    # step 1: predictions
     y_proba = model.predict_proba(X_test)
     y_pred_enc = model.predict(X_test)
 
-    print("\nPredicted probabilities shape:", y_proba.shape)
-    print("Encoded predictions sample:", y_pred_enc[:10])
-    print("True encoded labels sample:", y_test_enc[:10])
-
-    # Accuracy
+    # step 2: accuracy
     accuracy = accuracy_score(y_test_enc, y_pred_enc)
-    print("\nAccuracy on test set (Random Forest):", round(accuracy, 3))
 
-    # Log loss
+    # step 3: log loss
     ll = log_loss(y_test_enc, y_proba)
-    print("Log loss on test set (Random Forest):", round(ll, 4))
 
-    # Brier scores per class
+    # step 4: Brier scores per class
     brier_scores = []
+
     for class_idx, class_label in enumerate(le.classes_):
         y_true_binary = (y_test_enc == class_idx).astype(int)
         y_prob_class = y_proba[:, class_idx]
         brier = brier_score_loss(y_true_binary, y_prob_class)
         brier_scores.append(brier)
-        print(f"Brier score for class {class_label} (RF): {brier:.4f}")
 
     mean_brier = float(np.mean(brier_scores))
-    print("Mean Brier score (RF):", round(mean_brier, 4))
+
+    # step 5: Results
+    print(" --- XG Boost Model Evaluation (Test Set) ---")
+    print(f"  -> Accuracy: {accuracy:.3f}")
+    print(f"  -> Log Loss: {ll:.4f}")
+    print(f"  -> Mean Brier score: {mean_brier:.4f}")
 
     return {
         "y_proba": y_proba,
@@ -127,7 +113,8 @@ def evaluate_model(model: RandomForestClassifier, X_test: pd.DataFrame, y_test_e
     }
 
 # Plot reliability / calibration curves for each class.
-def plot_calibration_curves(y_test_enc: np.ndarray, y_proba: np.ndarray, le: LabelEncoder, n_bins: int = 10) -> None:
+def plot_calibration_curves(y_test_enc: np.ndarray, y_proba: np.ndarray, le: LabelEncoder, save_path: Path= CALIBRATION_PLOT_XGB_PATH, n_bins: int = 10,) -> None:
+    os.makedirs(save_path.parent, exist_ok=True)
     plt.figure(figsize=(8, 6))
 
     for class_idx, class_label in enumerate(le.classes_):
@@ -139,32 +126,33 @@ def plot_calibration_curves(y_test_enc: np.ndarray, y_proba: np.ndarray, le: Lab
             y_prob_class,
             n_bins=n_bins,
             strategy="uniform",
-            )
+        )
 
         plt.plot(
             pred_mean,
             true_frac,
             marker="o",
+            linestyle = "-",
             label=f"Class {class_label}",
-            )
+        )
 
     plt.plot([0, 1], [0, 1], "--", color="black", label="Perfect calibration")
 
     plt.xlabel("Predicted probability")
-    plt.ylabel("Observed frequency")
-    plt.title("Calibration curves (Random Forest)")
+    plt.ylabel("Observed frequency (True probability)")
+    plt.title("Calibration Curve: XGBoost + Elo")
     plt.legend()
-    plt.grid(True)
-    plt.show()
+    plt.grid(True, alpha=0.5)
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.close() # Ceci assure la libération des ressources.
+    print(f"  -> Calibration plot saved to: {save_path}")
 
-# Full Random Forest pipeline:
-def run_random_forest_pipeline():
+# Main function to run the full XGBoost modelling pipeline: load, preprocess, train XGBoost, evaluate, and plot calibration.
+def run_xgboost_pipeline(features_path: Path = FEATURES_ELO_PATH, plot_path: Path = CALIBRATION_PLOT_XGB_PATH, train_ratio: float = 0.8) -> tuple[xgb.XGBClassifier, dict]:
+    print("\n===== Starting XGBoost Model Training (10) =====")
 
-    # Load data
-    df = load_long_features_with_elo(FEATURES_ELO_PATH)
-    
-
-    # Feature set: rolling stats + Elo + is_home
+    # --- Confihuration ---
     feature_cols = [
         "is_home",
         "rolling_xg_for_5",
@@ -176,31 +164,39 @@ def run_random_forest_pipeline():
         "elo_away_before",
         "elo_diff_home"
     ]
+    
+    # 1. Load data
+    df = load_long_features_with_elo(features_path)
 
-    # Prepare dataset
+    # 2. Prepare dataset
     X, y = prepare_dataset(df, feature_cols, target_col="result")
 
-    # Time-based split
-    X_train, X_test, y_train, y_test = time_based_split(X, y, train_ratio=0.8)
+    # 3. Time-based split
+    X_train, X_test, y_train, y_test = time_based_split(X, y, train_ratio=train_ratio)
 
-    # Encode target
+    # 4. Preprocessing (Encode target)
     y_train_enc, y_test_enc, le = encode_target(y_train, y_test)
 
-    # Train Random Forest (no scaling needed)
-    model = train_random_forest(X_train, y_train_enc)
+    # 5. Train XGBoost (no scaling needed for XG Boost)
+    print("  -> Training XGBoost model...")
+    model = train_xgboost(X_train, y_train_enc)
+    print("  -> Model trained successfully.")
 
-    # Evaluate
+    # 6. Evaluate
+    print("  -> Evaluating model on test set...")
     metrics = evaluate_model(model, X_test, y_test_enc, le)
 
-    # Calibration curves
+    # 7. Save calibration curves
     plot_calibration_curves(
         y_test_enc=y_test_enc,
         y_proba=metrics["y_proba"],
         le=le,
         n_bins=10,
+        save_path=plot_path
     )
+    print("=== XGBoost Model Training (10) Complete. ✅ ===")
+    return model, metrics
 
-    return metrics
 
 if __name__ == "__main__":
-    run_random_forest_pipeline()
+    run_xgboost_pipeline()

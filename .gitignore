@@ -1,6 +1,6 @@
 # Environnement virtuel
 venv/
-
+.env
 # Fichiers temporaires Python
 __pycache__/
 *.pyc
@@ -8,9 +8,8 @@ __pycache__/
 # Fichiers système
 .DS_Store
 
-# Checkpoints Jupyter (si tu fais des notebooks)
+# Checkpoints Jupyter 
 .ipynb_checkpoints/
 
 # Variables d'environnement
 .env
-results/calibration_summary_22_23.csv
