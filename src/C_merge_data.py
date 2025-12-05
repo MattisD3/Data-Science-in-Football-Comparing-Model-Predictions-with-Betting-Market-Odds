@@ -8,6 +8,7 @@ BOOKMAKERS_PATH = Path("data/processed/clean_bookmakers_22_23.csv")
 MATCHES_WIDE_PATH = Path("data/processed/matches_wide_22_23.csv")
 MATCHES_LONG_PATH = Path("data/processed/matches_long_22_23.csv")
 
+# Load the cleaned data.
 def load_clean_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     matches_df = pd.read_csv(MATCHES_PATH)
     bookmakers_df = pd.read_csv(BOOKMAKERS_PATH)
@@ -129,22 +130,23 @@ def run_merge_data(wide_path: Path = MATCHES_WIDE_PATH, long_path: Path = MATCHE
     print("\n===== Loading cleaned data (03) =====")
     # 1. Load cleaned data
     matches_df, bookmakers_df = load_clean_data()
-    print(f"Matches loaded: {matches_df.shape} | Bookmakers loaded: {bookmakers_df.shape}") # Must be (380, 13) | (380,9)
+    print(f"  -> Matches loaded: {matches_df.shape} | Bookmakers loaded: {bookmakers_df.shape}") # Must be (380, 13) | (380,9)
 
     # 2. Merge dataframes
     merged_df = merge_matches_and_odds(matches_df, bookmakers_df)
-    print(f"Merged shape: {merged_df.shape} (3 columns used for merge)") # Must be (380, 19) (19= 13 + 9 - 3 common columns) (result, match_id, season)
+    print("  -> Merge completed.")
+    print(f"  -> Merged shape: {merged_df.shape} (3 columns used for merge)") # Must be (380, 19) (19= 13 + 9 - 3 common columns) (result, match_id, season)
 
     # 3. Add result column
     merged_df = add_result_column(merged_df)
 
     # 4. Build wide format (one row per match)
     matches_wide = build_matches_wide(merged_df)
-    print(f"matches_wide shape: {matches_wide.shape}") # Must be (380, 22) (19+3)
+    print(f"  -> matches_wide shape: {matches_wide.shape}") # Must be (380, 22) (19+3)
 
     # 5. Build long format (two rows per match, one for each team)
     matches_long = build_matches_long(matches_wide)
-    print(f"matches_long shape: {matches_long.shape}") # Must be (760, 17)
+    print(f"  -> matches_long shape: {matches_long.shape}") # Must be (760, 17)
 
     # 6. Save outputs
     wide_path.parent.mkdir(parents=True, exist_ok=True) 
@@ -152,10 +154,9 @@ def run_merge_data(wide_path: Path = MATCHES_WIDE_PATH, long_path: Path = MATCHE
     matches_wide.to_csv(wide_path, index=False)
     matches_long.to_csv(long_path, index=False)
 
-    print("\nSaved Outputs:")
-    print(f"- Wide format: {wide_path}")
-    print(f"- Long format: {long_path}")
-    print("===== Merge Pipeline Complete. ✅ =====\n")
+    print(f"  -> Saved wide format to: {wide_path}")
+    print(f"  -> Saved long format: {long_path}")
+    print("===== Merge Complete. ✅ =====\n")
 
 if __name__ == "__main__":
     run_merge_data(MATCHES_WIDE_PATH, MATCHES_LONG_PATH)

@@ -98,10 +98,10 @@ def evaluate_model(model: xgb.XGBClassifier, X_test: pd.DataFrame, y_test_enc: n
     mean_brier = float(np.mean(brier_scores))
 
     # step 5: Results
-    print(" --- XG Boost Model Evaluation (Test Set) ---")
-    print(f"  -> Accuracy: {accuracy:.3f}")
-    print(f"  -> Log Loss: {ll:.4f}")
-    print(f"  -> Mean Brier score: {mean_brier:.4f}")
+    print("  ----- XG Boost Model Evaluation (Test Set) without scaled features -----")
+    print(f"     -> Accuracy: {accuracy:.3f}")
+    print(f"     -> Log Loss: {ll:.4f}")
+    print(f"     -> Mean Brier score: {mean_brier:.4f}")
 
     return {
         "y_proba": y_proba,
@@ -145,7 +145,7 @@ def plot_calibration_curves(y_test_enc: np.ndarray, y_proba: np.ndarray, le: Lab
     plt.grid(True, alpha=0.5)
     plt.tight_layout()
     plt.savefig(save_path)
-    plt.close() # Ceci assure la libération des ressources.
+    plt.close() 
     print(f"  -> Calibration plot saved to: {save_path}")
 
 # Main function to run the full XGBoost modelling pipeline: load, preprocess, train XGBoost, evaluate, and plot calibration.
@@ -187,6 +187,7 @@ def run_xgboost_pipeline(features_path: Path = FEATURES_ELO_PATH, plot_path: Pat
     metrics = evaluate_model(model, X_test, y_test_enc, le)
 
     # 7. Save calibration curves
+    print("  -> Creating and saving calibration curve plot.")
     plot_calibration_curves(
         y_test_enc=y_test_enc,
         y_proba=metrics["y_proba"],
@@ -194,7 +195,7 @@ def run_xgboost_pipeline(features_path: Path = FEATURES_ELO_PATH, plot_path: Pat
         n_bins=10,
         save_path=plot_path
     )
-    print("=== XGBoost Model Training (10) Complete. ✅ ===")
+    print("===== XGBoost Model Training (10) Complete. ✅ =====\n")
     return model, metrics
 
 

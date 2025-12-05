@@ -535,8 +535,8 @@ def run_comparison(random_state: int = 42) -> None:
     # 9. Compute RMSE / MAE summary
     
     df_metrics = compute_rmse_mae(df_merge)
-    print("  -> RMSE/MAE summary (Model vs Bookmakers) :")
-    print("\n" + df_metrics.to_string(index=False))
+    print("\n  ----- RMSE/MAE summary (Model vs Bookmakers) -----")
+    print(df_metrics.to_string(index=False))
 
     # 10. Plots: scatter, errors, calibration, distributions
     plot_model_vs_book_scatter(df_merge, SCATTER_PLOT_PATH)
@@ -559,10 +559,10 @@ def run_comparison(random_state: int = 42) -> None:
 
     # c) Global home/draw/away bias
     home_bias, draw_bias, away_bias = compute_global_bias(df_errors)
-    print("\n----- Global bias (mean model - bookmakers error) -----")
-    print(f"  -> Home bias: {home_bias:.4f}")
-    print(f"  -> Draw bias: {draw_bias:.4f}")
-    print(f"  -> Away bias: {away_bias:.4f}")
+    print("\n  ----- Global bias (mean model - bookmakers error) -----")
+    print(f"     -> Home bias: {home_bias:.4f}")
+    print(f"     -> Draw bias: {draw_bias:.4f}")
+    print(f"     -> Away bias: {away_bias:.4f}")
 
     plot_global_bias_bar(home_bias, draw_bias, away_bias, GLOBAL_BIAS_BAR_PATH)
 
@@ -573,7 +573,7 @@ def run_comparison(random_state: int = 42) -> None:
     # 12. Save metrics summary (RMSE / MAE)
     df_metrics.to_csv(SUMMARY_RMSE_MAE_PATH, index=False)
     print(f"\nSummary metrics saved to: {SUMMARY_RMSE_MAE_PATH}")
-    print("===== Comparison Best Model vs Bookmakers (12) Complete. ✅ =====")
+    print("===== Comparison Best Model vs Bookmakers (12) Complete. ✅ =====\n")
 
 
 if __name__ == "__main__":

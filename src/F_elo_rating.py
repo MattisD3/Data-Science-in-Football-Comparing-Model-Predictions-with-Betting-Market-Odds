@@ -84,6 +84,7 @@ def run_elo_rating_wide(input_path: Path = MATCHES_WIDE_PATH, output_path: Path 
 
     # 2. Compute ELO
     df_elo = compute_elo_wide(df)
+    print("  -> ELO computation completed.")
 
     # 3. Keep only Elo-related columns for minimal output
     elo_minimal = df_elo[[
@@ -101,7 +102,7 @@ def run_elo_rating_wide(input_path: Path = MATCHES_WIDE_PATH, output_path: Path 
     elo_minimal.to_csv(output_path, index=False)
     print(f"  -> ELO rating file saved to: {output_path}")
     print(f"  -> Final shape of ELO data: {elo_minimal.shape}")
-    print("===== ELO Calculation Complete. ✅ =====")
+    print("===== ELO Calculation Complete. ✅ =====\n")
 
 
 if __name__ == "__main__":

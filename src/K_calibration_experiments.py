@@ -125,9 +125,6 @@ def evaluate_predictions(model_name: str, calibration: str, y_true_enc: np.ndarr
     ll = float(log_loss(y_true_enc, y_proba))
     brier_scores, mean_brier = compute_brier_scores(y_true_enc, y_proba, classes)
 
-    print(f"  -> {model_name} ({calibration}): "
-          f"Accuracy={acc:.3f} | LogLoss={ll:.4f} | MeanBrier={mean_brier:.4f}")
-
     return {
         "model": model_name,
         "calibration": calibration,
@@ -239,7 +236,6 @@ def run_calibration_experiments() -> tuple[pd.DataFrame, list[dict], np.ndarray,
     results: list[dict] = []
 
     for model_name, base_estimator in base_models.items():
-        print(f" --- Running experiments for: {model_name} ---")
 
         # --- Raw (no calibration) ---
         raw_model = base_estimator
@@ -283,7 +279,7 @@ def run_calibration_experiments() -> tuple[pd.DataFrame, list[dict], np.ndarray,
     # Sort for nicer display
     summary = summary.sort_values(["model", "calibration"]).reset_index(drop=True)
 
-    print("\n----- Calibration Summary (Ranked by Log Loss) -----")
+    print("\n  ----- Calibration Summary (with scaled features) -----")
     print(summary.to_string())
 
     return summary, results, y_test_enc, le.classes_
@@ -296,7 +292,7 @@ def run_full_calibration_pipeline() -> pd.DataFrame:
 
     plot_best_calibration(all_results, y_test_enc, classes, CALIB_PLOT_BEST_PATH)
 
-    print("===== Calibration Experiments (11) Complete. ✅ =====")
+    print("===== Calibration Experiments (11) Complete. ✅ =====\n")
     return summary_df
 
 

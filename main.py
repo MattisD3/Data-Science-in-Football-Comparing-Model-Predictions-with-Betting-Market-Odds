@@ -43,7 +43,7 @@ if __name__ == "__main__":
     run_elo_rating_wide()
     run_add_elo_features()
     run_baseline_with_elo()
-    print("\n ***** NOW EVERYTHING IS WITH THE ELO AS A FEATURE. ***** ")
+    print("\n ********** NOW EVERYTHING IS WITH THE ELO AS A FEATURE. ********** ")
     run_random_forest_pipeline()
     run_xgboost_pipeline()
     run_full_calibration_pipeline()

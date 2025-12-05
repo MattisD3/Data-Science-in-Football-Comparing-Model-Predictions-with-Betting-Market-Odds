@@ -99,10 +99,10 @@ def evaluate_model(model: LogisticRegression, X_test_scaled: np.ndarray, y_test_
     mean_brier = float(np.mean(brier_scores))
 
     # step 5: Results
-    print(" --- Model Evaluation (with ELO) (Test Set) ---")
-    print(f"  -> Accuracy: {accuracy:.3f}")
-    print(f"  -> Log Loss: {ll:.4f}")
-    print(f"  -> Mean Brier score: {mean_brier:.4f}")
+    print("  ----- Model Evaluation (with ELO) (Test Set) -----")
+    print(f"     -> Accuracy: {accuracy:.3f}")
+    print(f"     -> Log Loss: {ll:.4f}")
+    print(f"     -> Mean Brier score: {mean_brier:.4f}")
 
     return {
         "y_proba": y_proba,
@@ -200,7 +200,7 @@ def run_baseline_with_elo(features_path: Path = FEATURES_ELO_PATH, plot_path: Pa
         save_path=plot_path
     )
 
-    print("===== Logistic Model Training (08) Complete. ✅ =====")
+    print("===== Logistic Model Training (08) Complete. ✅ =====\n")
     return model, metrics
 
 if __name__ == "__main__":

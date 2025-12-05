@@ -103,10 +103,10 @@ def evaluate_model(model: LogisticRegression, X_test_scaled: np.ndarray,y_test_e
     mean_brier = float(np.mean(brier_scores))
 
     # step 5: Results
-    print(" --- Model Evaluation (Test Set) ---")
-    print(f"  -> Test Accuracy: {accuracy:.3f}")
-    print(f"  -> Test Log Loss: {ll:.4f}")
-    print(f"  -> Test Mean Brier Score: {mean_brier:.4f}")
+    print("  ----- Model Evaluation (Test Set) -----")
+    print(f"     -> Test Accuracy: {accuracy:.3f}")
+    print(f"     -> Test Log Loss: {ll:.4f}")
+    print(f"     -> Test Mean Brier Score: {mean_brier:.4f}")
 
     return {
         "y_proba": y_proba,
@@ -211,5 +211,5 @@ def run_logistic_baseline(feature_path: Path= FEATURES_PATH, plot_path: Path= CA
 
 if __name__ == "__main__":
     model, metrics = run_logistic_baseline()
-    print("\n--- Summary of Model Metrics ---")
+    print("\n----- Summary of Model Metrics -----")
     print(pd.Series(metrics).drop(["y_proba", "y_pred_enc"]))

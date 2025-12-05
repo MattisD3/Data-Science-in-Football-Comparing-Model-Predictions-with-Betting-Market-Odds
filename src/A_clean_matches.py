@@ -55,6 +55,7 @@ def normalize_team_names(df) -> pd.DataFrame:
 # Load, clean, filter, and construct the final Premier League 22–23 match dataset.
 def load_and_clean_matches(input_path: Path) -> pd.DataFrame:
     df = pd.read_csv(input_path)
+    print(f"  -> Loaded raw data: {df.shape}")
 
     # Premier League only
     df = df[df["comp"] == "Premier League"].copy()
@@ -62,7 +63,7 @@ def load_and_clean_matches(input_path: Path) -> pd.DataFrame:
     # Convert and filter by date
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     df = df[(df["date"] >= "2022-08-01") & (df["date"] <= "2023-06-30")].copy()
-
+ 
     # Normalize team names
     df = normalize_team_names(df)
 
@@ -129,13 +130,16 @@ def load_and_clean_matches(input_path: Path) -> pd.DataFrame:
 
 # Generate and save the cleaned match dataset.
 def run_clean_matches(input_path: Path = RAW_MATCHES_PATH, output_path: Path = PROCESSED_MATCHES_PATH) -> None:
-    print("===== Cleaning match data (01) =====")
+    print("\n===== Cleaning match data (01) =====")
     output_path.parent.mkdir(parents=True, exist_ok=True) 
 
     df = load_and_clean_matches(input_path) 
     df.to_csv(output_path, index=False)
 
-    print(f"Clean matches saved to: {output_path}")
+    print("  ----- Final matches dataframe preview -----")
+    print(df.head(), "\n")
+    
+    print(f"  -> Saved cleaned matches data to: {output_path}")
     print("===== Cleaning complete. ✅ =====\n")
 
 

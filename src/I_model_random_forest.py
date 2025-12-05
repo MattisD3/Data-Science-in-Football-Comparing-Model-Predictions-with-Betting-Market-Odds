@@ -64,7 +64,7 @@ def train_random_forest(X_train: pd.DataFrame, y_train_enc: np.ndarray) -> Rando
         min_samples_leaf=1,
         random_state=42,
         n_jobs=-1,  
-    )
+    ) 
 
     rf.fit(X_train, y_train_enc)
     return rf
@@ -93,10 +93,10 @@ def evaluate_model(model: RandomForestClassifier, X_test: pd.DataFrame, y_test_e
     mean_brier = float(np.mean(brier_scores))
 
     # step 5: Results
-    print(" --- Random Forest Model Evaluation (Test Set) ---")
-    print(f"  -> Accuracy: {accuracy:.3f}")
-    print(f"  -> Log Loss: {ll:.4f}")
-    print(f"  -> Mean Brier score: {mean_brier:.4f}")
+    print("  ----- Random Forest Model Evaluation (Test Set) without scaled features -----")
+    print(f"     -> Accuracy: {accuracy:.3f}")
+    print(f"     -> Log Loss: {ll:.4f}")
+    print(f"     -> Mean Brier score: {mean_brier:.4f}")
 
     return {
         "y_proba": y_proba,
@@ -147,7 +147,7 @@ def plot_calibration_curves(y_test_enc: np.ndarray, y_proba: np.ndarray, le: Lab
 def run_random_forest_pipeline(features_path: Path= FEATURES_ELO_PATH, plot_path: Path= CALIBRATION_PLOT_RF_PATH, train_ratio: float = 0.8) -> tuple[RandomForestClassifier, dict]:
     print("\n===== Starting Random Forest Model Training (09) =====")
     
-    # --- Confihuration ---
+    # --- Configuration ---
     feature_cols = [
         "is_home",
         "rolling_xg_for_5",
@@ -176,7 +176,7 @@ def run_random_forest_pipeline(features_path: Path= FEATURES_ELO_PATH, plot_path
     print("  -> Training Random Forest model...")
     model = train_random_forest(X_train, y_train_enc)
     print("  -> Model trained successfully.")
-
+ 
     # 6. Evaluate Model
     print("  -> Evaluating model on test set...")
     metrics = evaluate_model(model, X_test, y_test_enc, le)
@@ -190,7 +190,7 @@ def run_random_forest_pipeline(features_path: Path= FEATURES_ELO_PATH, plot_path
         n_bins=10,
         save_path=plot_path
     )
-    print("===== Random Forest Model Training (09) Complete. ✅ =====")
+    print("===== Random Forest Model Training (09) Complete. ✅ =====\n")
     return model, metrics
 
 

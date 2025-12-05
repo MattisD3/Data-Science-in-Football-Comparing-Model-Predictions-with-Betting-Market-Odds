@@ -118,13 +118,13 @@ def normalize_team_names(df: pd.DataFrame) -> pd.DataFrame:
 def save_clean_data(df: pd.DataFrame, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(path, index=False)
-    print(f"Saved cleaned data → {path}")
+    print(f"  -> Saved cleaned bookmakers data to: {path}")
 
 # Execute full bookmakers cleaning pipeline and return cleaned DataFrame.
 def run_cleaning_bookmakers_data(input_path: Path = RAW_BOOK_PATH, output_path: Path = PROCESSED_BOOK_PATH) -> pd.DataFrame:
-    print("===== Cleaning bookmakers odds (02) =====")
+    print("\n===== Cleaning bookmakers odds (02) =====")
     df = load_raw_data(input_path)
-    print(f"Loaded raw data: {df.shape[0]} rows")
+    print(f"  -> Loaded raw data: {df.shape}")
 
     df = select_relevant_columns(df)
     df = normalize_team_names(df)
@@ -132,10 +132,11 @@ def run_cleaning_bookmakers_data(input_path: Path = RAW_BOOK_PATH, output_path: 
     before = df.shape[0]
     df = clean_missing_values(df)
     after = df.shape[0]
-    print(f"Dropped missing values: {before - after} rows removed")
+    print(f"  -> Dropped missing values: {before - after} rows removed")
 
     df = compute_avg_odds(df)
     df = convert_odds_to_probabilities(df)
+    print("  -> Average odds of the 3 bookmakers converted to probabilities.")
     df = standardize_columns(df)
 
     df = df[
@@ -147,7 +148,7 @@ def run_cleaning_bookmakers_data(input_path: Path = RAW_BOOK_PATH, output_path: 
         ]
     ]
 
-    print("Final bookmakers dataframe preview:")
+    print("  ----- Final bookmakers dataframe preview -----")
     print(df.head(), "\n")
 
     save_clean_data(df, output_path)
