@@ -156,7 +156,6 @@ def merge_model_and_bookmakers(df_book: pd.DataFrame, df_match_probs: pd.DataFra
         how="inner",
         validate="one_to_one",
     )
-
     
     print(f"  -> Merged shape (bookmakers + model on test set): {df_merge.shape[0]} matches")
 
@@ -576,6 +575,11 @@ def run_comparison(random_state: int = 42) -> None:
     df_metrics.to_csv(SUMMARY_RMSE_MAE_PATH, index=False)
     print(f"\nSummary metrics saved to: {SUMMARY_RMSE_MAE_PATH}")
     print("===== Comparison Best Model vs Bookmakers (12) Complete. ✅ =====\n")
+
+    # à la fin, après avoir construit df_merge sur le test set
+    df_merge.to_csv("results/model_vs_bookmakers_full_22_23.csv", index=False)
+    print("-> Full model vs bookmakers data saved to: results/model_vs_bookmakers_full_22_23.csv")
+
 
 
 if __name__ == "__main__":
