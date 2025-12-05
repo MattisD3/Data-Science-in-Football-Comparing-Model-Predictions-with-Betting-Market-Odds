@@ -58,12 +58,15 @@ def encode_target(y_train: pd.Series, y_test: pd.Series) -> tuple[np.ndarray, np
 # Train a RandomForest classifier for multiclass (H/D/A) match outcome prediction.
 def train_random_forest(X_train: pd.DataFrame, y_train_enc: np.ndarray) -> RandomForestClassifier:
     rf = RandomForestClassifier(
-        n_estimators=500,
-        max_depth=None,
-        min_samples_split=2,
-        min_samples_leaf=1,
+        n_estimators=400,
+        max_depth=6,
+        min_samples_split=5,
+        min_samples_leaf=4,
+        max_features="sqrt",
         random_state=42,
-        n_jobs=-1,  
+        n_jobs=-1,
+        bootstrap=True,
+        max_samples=0.8,
     ) 
 
     rf.fit(X_train, y_train_enc)
@@ -135,7 +138,7 @@ def plot_calibration_curves(y_test_enc: np.ndarray, y_proba: np.ndarray, le: Lab
 
     plt.xlabel("Predicted probability")
     plt.ylabel("Observed frequency (True probability)")
-    plt.title("Calibration curves : Random Forest")
+    plt.title("Calibration curves : Random Forest + ELO")
     plt.legend()
     plt.grid(True, alpha=0.5)
     plt.tight_layout()
@@ -196,3 +199,4 @@ def run_random_forest_pipeline(features_path: Path= FEATURES_ELO_PATH, plot_path
 
 if __name__ == "__main__":
     run_random_forest_pipeline()
+

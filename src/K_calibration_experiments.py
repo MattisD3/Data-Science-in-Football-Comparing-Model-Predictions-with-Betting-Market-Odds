@@ -5,7 +5,7 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.calibration import CalibratedClassifierCV, calibration_curve
-from sklearn.metrics import accuracy_score, log_loss, brier_score_loss
+from sklearn.metrics import accuracy_score, log_loss, brier_score_loss 
 
 from xgboost import XGBClassifier
 import matplotlib.pyplot as plt
@@ -81,24 +81,30 @@ def build_base_models(random_state: int = 42) -> dict[str, object]:
 
     # 2. Random Forest
     models["RandomForest"] = RandomForestClassifier(
-        n_estimators=500,
-        max_depth=None,
-        min_samples_split=2,
-        min_samples_leaf=1,
+        n_estimators=400,
+        max_depth=6,
+        min_samples_split=5,
+        min_samples_leaf=4,
+        max_features="sqrt",
         random_state=random_state,
         n_jobs=-1,
+        bootstrap=True,
+        max_samples=0.8,
     )
 
     # 3. XGBoost
     models["XGBoost"] = XGBClassifier(
         objective="multi:softprob",
         num_class=3,
-        n_estimators=400,
+        n_estimators=200,
         learning_rate=0.05,
-        max_depth=4,
-        subsample=0.9,
-        colsample_bytree=0.9,
-        reg_lambda=1.0,
+        max_depth=3,
+        min_child_weight=6,    
+        gamma=1,
+        subsample=0.7,
+        colsample_bytree=0.7,
+        reg_lambda=3.0,
+        reg_alpha=1,
         random_state=random_state,
         n_jobs=-1,
         eval_metric="mlogloss",

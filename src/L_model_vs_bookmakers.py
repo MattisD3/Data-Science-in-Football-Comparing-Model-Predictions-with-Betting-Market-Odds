@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Tuple, Dict, Optional
 
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.linear_model import LogisticRegression
+from xgboost import XGBClassifier
 from sklearn.calibration import CalibratedClassifierCV, calibration_curve
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
@@ -87,22 +87,24 @@ def scale_features(X_train: pd.DataFrame, X_test: pd.DataFrame) -> Tuple[np.ndar
     print(f"  -> Features scaled. Scaled Train shape: {X_train_scaled.shape}")
     return X_train_scaled, X_test_scaled, scaler
 
-# Build the best calibrated model: Multinomial logistic regression + Platt scaling (sigmoid). We wrap a LogisticRegression estimator inside CalibratedClassifierCV.
-def build_calibrated_logistic(random_state: int = 42) -> CalibratedClassifierCV:
-    base_log = LogisticRegression(
-        solver="lbfgs",
-        max_iter=500,
+# Build the best calibrated model: XGBoost raw
+def build_calibrated_xgboost(random_state: int = 42) -> CalibratedClassifierCV: 
+    model = XGBClassifier(
+        objective="multi:softprob",   # output class probabilities
+        num_class=3,
+        n_estimators=300,
+        learning_rate=0.05,
+        max_depth=3,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        reg_lambda=2.0,
+        reg_alpha=1,
         random_state=random_state,
-        n_jobs=-1,          
-    )
-    # Wrap with Platt scaling (sigmoid) using CV=3
-    clf = CalibratedClassifierCV(
-        estimator=base_log,
-        method="sigmoid",   # Platt scaling
-        cv=3,
+        n_jobs=-1,
+        eval_metric="mlogloss",       # avoid warnings in fit
     )
 
-    return clf
+    return model
 
 # Convert team-level probabilities (long format) into match-level probabilities (one row per match, home team only).
 def build_match_level_probabilities(df_test: pd.DataFrame, y_proba_test: np.ndarray, le: LabelEncoder) -> pd.DataFrame:
@@ -515,15 +517,15 @@ def run_comparison(random_state: int = 42) -> None:
     y_train_enc, y_test_enc, le = encode_target(y_train, y_test)
     X_train_scaled, X_test_scaled, _ = scale_features(X_train, X_test)
 
-    # 5. Train calibrated Multionomial Logistic Regression
-    print("  -> Training Calibrated (Platt) Multionomial Logistic Regression model ...")
-    clf = build_calibrated_logistic(random_state=random_state)
-    clf.fit(X_train_scaled, y_train_enc)
+    # 5. Train XGBoost model 
+    print("  -> Training raw XGBoost model ...")
+    model = build_calibrated_xgboost(random_state=random_state)
+    model.fit(X_train_scaled, y_train_enc)
     print("  -> Model trained successfully.")
 
     # 6. Predicted probabilities on test set
-    y_proba_test = clf.predict_proba(X_test_scaled)
-    y_pred_test = clf.predict(X_test_scaled)
+    y_proba_test = model.predict_proba(X_test_scaled)
+    y_pred_test = model.predict(X_test_scaled)
 
     # 7. Build match-level probabilities (home rows only)
     df_match_probs = build_match_level_probabilities(df_test, y_proba_test, le)
