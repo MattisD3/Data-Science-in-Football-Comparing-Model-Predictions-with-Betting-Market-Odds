@@ -489,7 +489,7 @@ def plot_big_six_bias(bias_home: pd.DataFrame, bias_away: pd.DataFrame, save_pat
     
 
 def run_comparison(random_state: int = 42) -> None:
-    print("\n===== Starting the comparison between my best-calibrated model (logistic regression + Platt) and the bookmakers' probabilities. (12) =====")
+    print("\n===== Starting the comparison between my best model (XG Boost Raw) and the bookmakers' probabilities. (12) =====")
 
     # --- Configuration ---
     feature_cols = [
@@ -576,11 +576,6 @@ def run_comparison(random_state: int = 42) -> None:
     print(f"\nSummary metrics saved to: {SUMMARY_RMSE_MAE_PATH}")
     print("===== Comparison Best Model vs Bookmakers (12) Complete. ✅ =====\n")
 
-    # à la fin, après avoir construit df_merge sur le test set
-    df_merge.to_csv("results/model_vs_bookmakers_full_22_23.csv", index=False)
-    print("-> Full model vs bookmakers data saved to: results/model_vs_bookmakers_full_22_23.csv")
-
-
-
+    
 if __name__ == "__main__":
     run_comparison()
