@@ -71,7 +71,7 @@ def run_add_elo_features(features_path: Path = FEATURES_LONG_PATH, elo_path: Pat
     print("  ----- Final features dataframe preview -----")
     print(df_with_elo.head(), "\n")
     save_long_with_elo(df_with_elo, output_path)
-    print("===== ELO Feature Merge Complete. ✅ =====")
+    print("===== ELO Feature Merge Complete. ✅ =====\n")
 
 if __name__ == "__main__":
     run_add_elo_features()

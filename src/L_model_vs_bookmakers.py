@@ -377,7 +377,7 @@ def plot_team_away_bias_bar(team_bias_away: pd.DataFrame, save_path=None) -> Non
     plt.ylabel("Mean error (model - bookmakers)")
     plt.tight_layout()
 
-    if save_path is not None:
+    if save_path :
         plt.savefig(save_path, dpi=300)
         plt.close()
         print(f"  -> Away-team bias bar plot saved to: {save_path}")
@@ -421,7 +421,7 @@ def plot_global_bias_bar(home_bias: float, draw_bias: float, away_bias: float, s
     plt.title("Systematic model vs bookmakers bias")
     plt.ylabel("Mean error (model - bookmakers)")
     plt.tight_layout()
-    if save_path :
+    if save_path:
         plt.savefig(save_path, dpi=300)
         plt.close()
         print(f"  -> Global bias bar plot saved to: {save_path}")
@@ -487,7 +487,7 @@ def plot_big_six_bias(bias_home: pd.DataFrame, bias_away: pd.DataFrame, save_pat
         plt.close()
         print(f"  -> Big Six vs Others (away) bias plot saved to: {save_path_away}")
     
-
+# Main function : run raw XGBoost and compare with bookmakers
 def run_comparison(random_state: int = 42) -> None:
     print("\n===== Starting the comparison between my best model (XG Boost Raw) and the bookmakers' probabilities. (12) =====")
 
@@ -572,7 +572,7 @@ def run_comparison(random_state: int = 42) -> None:
     plot_big_six_bias(bias_home, bias_away, BIG_SIX_HOME_PATH, BIG_SIX_AWAY_PATH)
 
     # 12. Save metrics summary (RMSE / MAE)
-    df_metrics.to_csv(SUMMARY_RMSE_MAE_PATH, index=False)
+    df_metrics.to_csv(SUMMARY_RMSE_MAE_PATH,float_format="%.6f", index=False)
     print(f"\nSummary metrics saved to: {SUMMARY_RMSE_MAE_PATH}")
     print("===== Comparison Best Model vs Bookmakers (12) Complete. ✅ =====\n")
 

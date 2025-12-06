@@ -35,6 +35,7 @@ from src.K_calibration_experiments import run_full_calibration_pipeline
 from src.L_model_vs_bookmakers import run_comparison
 
 if __name__ == "__main__":
+    print("\n********** START OF THE PROJECT **********\n")
     run_clean_matches()
     run_cleaning_bookmakers_data()
     run_merge_data()
@@ -42,9 +43,10 @@ if __name__ == "__main__":
     run_logistic_baseline()
     run_elo_rating_wide()
     run_add_elo_features()
+    print("\n********** NOW EVERYTHING IS WITH THE ELO AS A FEATURE. **********\n")
     run_baseline_with_elo()
-    print("\n ********** NOW EVERYTHING IS WITH THE ELO AS A FEATURE. ********** ")
     run_random_forest_pipeline()
     run_xgboost_pipeline()
     run_full_calibration_pipeline()
     run_comparison()
+    print("\n********** END OF THE PROJECT **********\n")

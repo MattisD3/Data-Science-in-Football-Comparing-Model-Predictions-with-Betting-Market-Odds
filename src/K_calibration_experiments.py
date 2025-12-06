@@ -144,7 +144,7 @@ def evaluate_predictions(model_name: str, calibration: str, y_true_enc: np.ndarr
 
 # Save summary metrics to CSV in the results folder.
 def save_calibration_summary(summary: pd.DataFrame, path: Path= CALIB_SUMMARY_PATH) -> None:
-    summary.to_csv(path, index=False)
+    summary.to_csv(path, float_format="%.6f", index=False)
     print(f"\n  -> Calibration summary saved to: {path}")
 
 # Plot multiclass calibration curves (one curve per class).
