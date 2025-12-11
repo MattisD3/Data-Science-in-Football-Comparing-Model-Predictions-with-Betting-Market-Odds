@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict
 
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from xgboost import XGBClassifier
@@ -15,6 +15,7 @@ FEATURES_ELO_PATH = Path("data/processed/features_matches_long_elo_22_23.csv")
 DATA_BOOKMAKERS_PATH = Path("data/processed/clean_bookmakers_22_23.csv")
 # Output path
 SUMMARY_RMSE_MAE_PATH = Path("results/model_vs_bookmakers_summary_22_23.csv")
+FEATURE_IMPORTANCE_PATH = Path("results/feature_importance_xgb_raw_22_23.png")
 # Output: plots — model vs bookmakers
 SCATTER_PLOT_PATH = Path("results/scatter_model_vs_book_22_23.png")
 ERRORS_PLOT_PATH = Path("results/errors_model_vs_book_22_23.png")
@@ -31,6 +32,7 @@ GLOBAL_BIAS_BAR_PATH = Path("results/global_bias_bar_22_23.png")
 # Output: Big Six vs Others bias
 BIG_SIX_HOME_PATH = Path("results/big_six_vs_others_home_bias_22_23.png")
 BIG_SIX_AWAY_PATH = Path("results/big_six_vs_others_away_bias_22_23.png")
+
 
 
 # Load long-format match features (two rows per match, one per team).
@@ -486,7 +488,28 @@ def plot_big_six_bias(bias_home: pd.DataFrame, bias_away: pd.DataFrame, save_pat
         plt.savefig(save_path_away, dpi=300)
         plt.close()
         print(f"  -> Big Six vs Others (away) bias plot saved to: {save_path_away}")
-    
+
+# Compute and plots the importance of features for a trained XGBoost model.
+def plot_feature_importance(model: XGBClassifier, feature_names: list[str], save_path=None) -> pd.DataFrame:
+    importances = model.feature_importances_
+
+    df_importance = pd.DataFrame({
+        "feature": feature_names,
+        "importance": importances
+    }).sort_values("importance", ascending=False)
+
+
+    plt.figure(figsize=(8, 5))
+    plt.barh(df_importance["feature"], df_importance["importance"])
+    plt.gca().invert_yaxis()  # la plus importante en haut
+    plt.xlabel("Importance")
+    plt.title("Feature importance — XGBoost Raw")
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300)
+        plt.close()
+        print(f"  -> Feature importance plot saved to: {save_path}")
+
 # Main function : run raw XGBoost and compare with bookmakers
 def run_comparison(random_state: int = 42) -> None:
     print("\n===== Starting the comparison between my best model (XG Boost Raw) and the bookmakers' probabilities. (12) =====")
@@ -521,6 +544,9 @@ def run_comparison(random_state: int = 42) -> None:
     model = build_calibrated_xgboost(random_state=random_state)
     model.fit(X_train_scaled, y_train_enc)
     print("  -> Model trained successfully.")
+
+    # 5.1 Feature importance
+    plot_feature_importance(model, feature_cols, FEATURE_IMPORTANCE_PATH)
 
     # 6. Predicted probabilities on test set
     y_proba_test = model.predict_proba(X_test_scaled)

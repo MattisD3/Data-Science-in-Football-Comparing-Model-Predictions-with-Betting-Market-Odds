@@ -58,20 +58,20 @@ def encode_target(y_train: pd.Series, y_test: pd.Series) -> tuple[np.ndarray, np
 # Train an XGBoost classifier for multiclass (H/D/A) match outcome prediction.
 def train_xgboost(X_train: pd.DataFrame,y_train_enc: np.ndarray) -> xgb.XGBClassifier:
     model = xgb.XGBClassifier(
-        objective="multi:softprob",  # output class probabilities
-        num_class=3,
-        n_estimators=200,
-        learning_rate=0.05,
-        max_depth=3,
-        min_child_weight=6,    
-        gamma=1,
-        subsample=0.7,
-        colsample_bytree=0.7,
-        reg_lambda=3.0,
-        reg_alpha=1,
-        random_state=42,
-        n_jobs=-1,
-        eval_metric="mlogloss",      # avoid warnings in fit
+        objective="multi:softprob", # Makes the model output probabilities for each of the three outcomes (H/D/A).
+        num_class=3,                # Specifies that there are three possible classes to predict.
+        n_estimators=200,           # Number of boosting rounds (trees). More trees allow better learning but increase training time.
+        learning_rate=0.05,         # Controls how fast the model learns; a small value makes learning more stable and avoids overfitting.
+        max_depth=3,                # Limits how deep each tree can grow, keeping the model simple and reducing overfitting.
+        min_child_weight=6,         # Requires a minimum amount of data in each leaf; prevents the model from learning noise.  
+        gamma=1,                    # Requires a minimum improvement (gain) to create new splits; reduces unnecessary splits.
+        subsample=0.7,              # Trains each tree on a random 70% of the data; helps generalization.
+        colsample_bytree=0.7,       # Uses only 70% of the features when building each tree; increases diversity.
+        reg_lambda=3.0,             # L2 regularization: makes the model more stable by shrinking large weights.
+        reg_alpha=1,                # L1 regularization: can push some weights to zero, simplifying the model.
+        random_state=42,            # Ensures results stay the same each time the model is run.
+        n_jobs=-1,                  # Uses all CPU cores to speed up training.
+        eval_metric="mlogloss",     # The model tries to minimize multiclass log-loss, which is the main performance metric in this project.
     )
 
     model.fit(X_train, y_train_enc)

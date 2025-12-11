@@ -251,7 +251,6 @@ def run_calibration_experiments() -> tuple[pd.DataFrame, list[dict], np.ndarray,
         res_raw = evaluate_predictions(model_name, "raw", y_test_enc, y_proba_raw, y_pred_raw, le.classes_)
         results.append(res_raw)
 
-
         # --- Platt scaling (sigmoid) ---
         platt = CalibratedClassifierCV(estimator=base_estimator, method="sigmoid", cv=3) 
         platt.fit(X_train_scaled, y_train_enc)

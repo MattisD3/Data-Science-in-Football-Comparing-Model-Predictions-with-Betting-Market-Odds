@@ -58,15 +58,15 @@ def encode_target(y_train: pd.Series, y_test: pd.Series) -> tuple[np.ndarray, np
 # Train a RandomForest classifier for multiclass (H/D/A) match outcome prediction.
 def train_random_forest(X_train: pd.DataFrame, y_train_enc: np.ndarray) -> RandomForestClassifier:
     rf = RandomForestClassifier(
-        n_estimators=400,
-        max_depth=6,
-        min_samples_split=5,
-        min_samples_leaf=4,
-        max_features="sqrt",
-        random_state=42,
-        n_jobs=-1,
-        bootstrap=True,
-        max_samples=0.8,
+        n_estimators=400,       # number of trees
+        max_depth=6,            # limits how deep each tree can grow.
+        min_samples_split=5,    # Minimum number of samples required to split a node; avoids overly specific splits.
+        min_samples_leaf=4,     # Minimum samples required in each leaf; makes the model more stable.
+        max_features="sqrt",    # Uses only a subset of features when splitting, which increases tree diversity.
+        random_state=42,        # Ensures results are reproducible by fixing randomness
+        n_jobs=-1,              # Uses all CPU cores to train faster.
+        bootstrap=True,         # Each tree is trained on a random sample of the data, improving generalization.
+        max_samples=0.8,        # Each tree sees only 80% of the training data, which reduces overfitting.
     ) 
 
     rf.fit(X_train, y_train_enc)

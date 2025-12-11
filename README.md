@@ -1,47 +1,95 @@
-# Data Science in Football : Comparing Model Predictions with Betting Market Odds.
+# Data Science in Football: Comparing Model Predictions with Betting Market Odds
 
-**Category** : Data Analysis & Visualization
-**Name** : Descamps Mattis
+## Research Question
+To what extent can football performance metrics such as expected goals (xG), shots, possession, and Elo ratings be used to predict match outcome probabilities, and how do these model-implied probabilities differ from bookmaker odds?
 
-## Problem statement or motivation
-As a football fan and also a former gambler, I always wanted to know why sometimes the odds are so high for such big teams or so low for a small team. To understand that i will try to do my own odds based on football metrics such as `xG`, `shot_on_target`, `possession`, etc. by using machine learning models and then compare them to the one of the bookmakers. The aim of this project is to find out where and why a probability created from a machine learning model diverges from the one implied by the bookmakers. This project will also help me understand which statistics are the more "useful" to predict a winner.
+## Setup
+# Create environment:
+conda env create -f environment.yml
+conda activate football-outcome-prediction
 
-My research question is :
-***To what extent can football performance metrics such as expected goals (xG), shots, and possession be used to predict match outcome probabilities, and how do these model-implied probabilities differ from bookmaker odds?***
+# Usage
+Run full pipeline:
+python main.py
 
-## Planned approach and technologies
-1. **Data collection**
-   I will use different sources such as:
-   - [Understat](https://understat.com/) for the collection of the fooball metrics such as the xG, shots on target etc.
-   - [Fbref](https://fbref.com/en/comps/9/Premier-League-Stats) also for the football metrics.
-   - [Football-data.co.uk](https://www.football-data.co.uk/) for the bookmakers odds.
-     
-2. **Data cleaning/preparation**
-   - Delete useless data then transform the data of each games into two lines (one for the home team and one for the away team).
-   - Create new data from existing one such as: `xg_for_avg_last5`, `poss_diff`, `poss_diff_avg_last5` and more to indicates the trends, see the team recent form.
-   - Merge with bookmakers odds and convert them to implied probabilities.
-   - Standardize datasets using **pandas** and **NumPy**
+This executes the entire workflow:
+-   data cleaning and merging
+-   feature engineering (rolling xG, points form, Elo ratings…)
+-   training Logistic Regression, Random Forest, and XGBoost
+-   probability calibration (Platt, Isotonic)
+-   comparison of model probabilities vs bookmaker implied odds
+-   generation of plots + summary metrics in the results/ folder
 
-3. **Modeling & evaluation**
-   - Train classification models (*Multinomial Logistic Regression*, *Random Forest*, *XGBoost*) to estimate probabilities for home/draw/away outcomes.
-   - Calibrate probabilities using *Platt* and *Isotonic scaling*.
-   - Evaluate model performance using *Log Loss* and *Brier Score* to assess predictive quality and calibration.
-   
-4. **Visualization & Analysis**
-   - Use **matplotlib** and **seaborn** to visualize the relationships and the results.
-   - Visualization tools (**scatter plots**, **heatmaps**) will show where the model and bookies disagree and explore why (e.g., overreaction to recent form, missing crucial info such as best player being injured).
-   - Visualization will support interpretability and make results more intuitive for non-technical readers.
+## Project Structure
+DATA-SCIENCE-IN-FOOTBALL-COMPARING-MODEL-PREDICTIONS-WITH-BETTING-MARKET-ODDS/
+├── README.md                     # Overview + installation + usage instructions
+├── requirements.txt              
+├── environment.yml               # Conda environment file for reproducibility
+├── project_report.md             # Final project report (Markdown version)
+├── PROPOSAL                      # Initial project proposal
+├── main.py                             # Main script to run the full pipeline end-to-end
+├── data/                               # Input datasets
+│   ├── raw/                            # Raw EPL 22/23 data (Football-Data, FBref)
+|       ├── matches.csv                 
+│       └── data_bookmakers_22_23.csv
+│   └── processed/                      # Cleaned and merged datasets used for modeling
+│
+├── notebooks/                          # Jupyter notebooks for exploration and prototyping
+│
+├── src/                                # Main source code for the pipeline
+│   ├── A_clean_matches.py                      # Cleaning and preprocessing match data
+│   ├── B_clean_bookmakers_data.py              # Cleaning bookmakers' odds
+│   ├── C_merge_data.py                         # Merging all data sources together
+│   ├── D_feature_engineering.py                # Feature creation (xG rolling stats, etc.)
+│   ├── E_model_baseline_logistic.py            # Logistic regression baseline model
+|   ├── F_elo_rating.py                         # Creating Elo-based features
+|   ├── G_add_elo_to_long_features.py           # Merging Elo-based features to the feature dataset
+|   ├── H_model_baseline_logistic_with_elo.py   # Logistic regression including Elo features
+│   ├── I_random_forest.py                      # Random Forest model
+│   ├── J_xgboost.py                            # XGBoost model
+│   ├── K_calibration_experiments.py            # Calibration (Platt, Isotonic) + curves
+│   └── L_model_vs_bookmakers.py                # Model vs bookmakers probability comparison
+│
+├── results/                            # Outputs generated by the pipeline (Plots, metrics, calibration curves)
+├── tests/                       
+├── docs/                         
+└── .gitignore                          # Files and folders excluded from version control
 
-## Expected challenges and how I’ll address them
-   - Ensuring data consistency across my different sources.
-   - Avoiding information leakage by using only pre-match features.
-   - Handling correctly the different team names when merging data.
-     
-## Success criteria (how will I know it’s working?)   
-   - The model produces calibrated and consistent data.
-   - Visual and quantitative comparisons between model and bookmaker odds reveal systematic divergences.
-   - The project provides clear explanations of why and where data-driven models and market expectations differ.
 
-## Stretch goals (if time permits)
-- Extend anaylsis accross multiple leagues.
-- Backtesting : simulate a small theoretical betting strategy using model and bookmaker probabilities to test for potential value bets and analyze market mispricing.
+## Key Results
+Model performance (EPL 22/23):
+
+| Model + calibration     | Accuracy | Log-loss | Mean-Brier | 
+|-------------------------|----------|----------|------------|
+| Logistic + Isotonic     | 0.60714  | 1.01539  | 0.19339    |
+| Logistic + Platt        | 0.61607  | 0.93570  | 0.18418    | 
+| Logistic + raw          | 0.60714  | 0.94864  | 0.18629    |
+| RandomForest + Isotonic | 0.61607  | 1.83101  | 0.18019    | 
+| RandomForest + Platt    | 0.61607  | 0.91112  | 0.17709    |
+| RandomForest + raw      | 0.62500  | 0.91111  | 0.17707    |
+| XGBoost + Isotonic      | 0.60714  | 1.55443  | 0.17983    |
+| XGBoost + Platt         | 0.63393  | 0.90839  | 0.17551    |
+| XGBoost + raw           | 0.61607  | 0.90774  | 0.17550    |
+
+| Outcome | RMSE (model vs book)| MAE (model vs book) |
+|---------|---------------------|---------------------|
+| H       | 0.20713             | 0.16992             |
+| D       | 0.16699             | 0.13507             |
+| A       | 0.17963             | 0.14796             |
+
+Insights:
+Bookmakers remain better calibrated overall.
+The model performs surprisingly well for away-win probabilities.
+Bias analysis shows the model underestimates Chelsea and Manchester City at home, partly due to bookmaker boosting and reputation effects.
+
+## Dependencies
+All included in environment.yml (Python 3.11, pandas, numpy, scikit-learn, xgboost, matplotlib, seaborn, jupyter).
+Recreate environment with:
+conda env create -f environment.yml
+conda activate football-outcome-prediction
+
+## Reproducibility
+To regenerate all plots and evaluation files:
+python main.py
+
+Everything will be saved inside the results/ folder.
