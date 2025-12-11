@@ -21,6 +21,7 @@ This executes the entire workflow:
 -   generation of plots + summary metrics in the results/ folder
 
 ## Project Structure
+```
 DATA-SCIENCE-IN-FOOTBALL-COMPARING-MODEL-PREDICTIONS-WITH-BETTING-MARKET-ODDS/
 ├── README.md                     # Overview + installation + usage instructions
 ├── requirements.txt              
@@ -55,6 +56,7 @@ DATA-SCIENCE-IN-FOOTBALL-COMPARING-MODEL-PREDICTIONS-WITH-BETTING-MARKET-ODDS/
 ├── docs/                         
 └── .gitignore                          # Files and folders excluded from version control
 
+```
 
 ## Key Results
 Model performance (EPL 22/23):
