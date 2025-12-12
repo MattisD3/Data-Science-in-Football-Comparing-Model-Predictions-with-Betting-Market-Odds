@@ -29,10 +29,6 @@ TEAM_AWAY_BIAS_BAR_PATH = Path("results/team_away_bias_bar_22_23.png")
 TEAM_AWAY_BIAS_HEATMAP_PATH = Path("results/team_away_bias_heatmap_22_23.png")
 GLOBAL_BIAS_BAR_PATH = Path("results/global_bias_bar_22_23.png")
 
-# Output: Big Six vs Others bias
-BIG_SIX_HOME_PATH = Path("results/big_six_vs_others_home_bias_22_23.png")
-BIG_SIX_AWAY_PATH = Path("results/big_six_vs_others_away_bias_22_23.png")
-
 
 
 # Load long-format match features (two rows per match, one per team).
@@ -428,67 +424,6 @@ def plot_global_bias_bar(home_bias: float, draw_bias: float, away_bias: float, s
         plt.close()
         print(f"  -> Global bias bar plot saved to: {save_path}")
 
-# Compute Big Six vs others bias (home and away perspective).
-def compute_big_six_bias(df_errors: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    big_six = {
-        "Arsenal",
-        "Chelsea",
-        "Liverpool",
-        "Manchester City",
-        "Manchester United",
-        "Tottenham Hotspur",
-    }
-
-    # Home perspective: group by whether home_team is Big Six.
-    df_errors["is_big_six_home"] = df_errors["home_team"].isin(big_six)
-
-    home_bias_group = (
-        df_errors.groupby(
-            np.where(df_errors["is_big_six_home"], "Big Six (home)", "Other teams")
-        )[["err_home", "err_draw", "err_away"]]
-        .mean()
-        .rename_axis("group")
-    )
-
-    # Away perspective: group by whether AWAY team is Big Six.
-    df_errors["is_big_six_away"] = df_errors["away_team"].isin(big_six)
-
-    away_bias_group = (
-        df_errors.groupby(
-            np.where(df_errors["is_big_six_away"], "Big Six (away)", "Other teams")
-        )[["err_home", "err_draw", "err_away"]]
-        .mean()
-        .rename_axis("group")
-    )
-
-    return home_bias_group, away_bias_group
-
-# Plot Big Six vs others bias (stacked outcome bars).
-def plot_big_six_bias(bias_home: pd.DataFrame, bias_away: pd.DataFrame, save_path_home=None, save_path_away=None) -> None:
-    # Home team perspective
-    plt.figure(figsize=(8, 5))
-    bias_home[["err_home", "err_draw", "err_away"]].plot(kind="bar", figsize=(8, 5))
-    plt.axhline(0, color="black", linewidth=1)
-    plt.title("Model vs Bookmakers bias — Big Six vs Others (Home team)")
-    plt.ylabel("Mean error (model - bookmakers)")
-    plt.tight_layout()
-    if save_path_home:
-        plt.savefig(save_path_home, dpi=300)
-        plt.close()
-        print(f"  -> Big Six vs Others (home) bias plot saved to: {save_path_home}")
-
-    # Away team perspective
-    plt.figure(figsize=(8, 5))
-    bias_away[["err_home", "err_draw", "err_away"]].plot(kind="bar", figsize=(8, 5))
-    plt.axhline(0, color="black", linewidth=1)
-    plt.title("Model vs Bookmakers bias — Big Six vs Others (Away team)")
-    plt.ylabel("Mean error (model - bookmakers)")
-    plt.tight_layout()
-    if save_path_away:
-        plt.savefig(save_path_away, dpi=300)
-        plt.close()
-        print(f"  -> Big Six vs Others (away) bias plot saved to: {save_path_away}")
-
 # Compute and plots the importance of features for a trained XGBoost model.
 def plot_feature_importance(model: XGBClassifier, feature_names: list[str], save_path=None) -> pd.DataFrame:
     importances = model.feature_importances_
@@ -560,7 +495,6 @@ def run_comparison(random_state: int = 42) -> None:
     df_merge = merge_model_and_bookmakers(df_book, df_match_probs)
 
     # 9. Compute RMSE / MAE summary
-    
     df_metrics = compute_rmse_mae(df_merge)
     print("\n  ----- RMSE/MAE summary (Model vs Bookmakers) -----")
     print(df_metrics.to_string(index=False))
@@ -571,7 +505,7 @@ def run_comparison(random_state: int = 42) -> None:
     plot_calibration_model_vs_book(df_merge, CALIB_PLOT_PATH)
     plot_probability_distributions(df_merge, PROB_DIST_PLOT_PATH)
 
-    # 11. Team-level & Big Six divergence analysis
+    # 11. Team-level divergence analysis
     df_errors = add_error_columns(df_merge)
 
     # a) Team bias – HOME team perspective
@@ -592,10 +526,6 @@ def run_comparison(random_state: int = 42) -> None:
     print(f"     -> Away bias: {away_bias:.4f}")
 
     plot_global_bias_bar(home_bias, draw_bias, away_bias, GLOBAL_BIAS_BAR_PATH)
-
-    # d) Big Six vs Other teams
-    bias_home, bias_away = compute_big_six_bias(df_errors)
-    plot_big_six_bias(bias_home, bias_away, BIG_SIX_HOME_PATH, BIG_SIX_AWAY_PATH)
 
     # 12. Save metrics summary (RMSE / MAE)
     df_metrics.to_csv(SUMMARY_RMSE_MAE_PATH,float_format="%.6f", index=False)
